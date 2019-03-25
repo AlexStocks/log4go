@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/name5566/leaf/log"
 	"io"
 	"io/ioutil"
 	"os"
@@ -49,10 +48,10 @@ func TestEscapeQueryURLString(t *testing.T) {
 	lr := newLogRecord(CRITICAL, "source",
 		"/test/group%3Dbjtelecom%26protocol%3Dpb%26role%3DSRT_Provider%26service%3Dshopping%26version%3D1.0.1")
 
-	log.Debug("%s",
+	Debug("%s",
 		"/test/group%3Dbjtelecom%26protocol%3Dpb%26role%3DSRT_Provider%26service%3Dshopping%26version%3D1.0.1")
-	log.Debug("log record:%#v", lr)
-	log.Close()
+	Debug("log record:%#v", lr)
+	Close()
 }
 
 var formatTests = []struct {
@@ -435,7 +434,7 @@ func TestXMLConfig(t *testing.T) {
 	fmt.Fprintln(fd, "    <level>FINEST</level>")
 	fmt.Fprintln(fd, "    <property name=\"filename\">test.log</property>")
 	fmt.Fprintln(fd, "    <!--")
-	fmt.Fprintln(fd, "       %T - Time (15:04:05 MST)")
+	fmt.Fprintln(fd, `       % T - Time (15:04:05 MST)`)
 	//fmt.Fprintln(fd, "       %t - Time (15:04)")
 	fmt.Fprintln(fd, "       %D - Date (2006/01/02)")
 	//fmt.Fprintln(fd, "       %d - Date (01/02/06)")
@@ -443,9 +442,9 @@ func TestXMLConfig(t *testing.T) {
 	fmt.Fprintln(fd, "       %S - Source")
 	fmt.Fprintln(fd, "       %M - Message")
 	fmt.Fprintln(fd, "       It ignores unknown format strings (and removes them)")
-	fmt.Fprintln(fd, "       Recommended: \"[%D %T] [%L] (%S) %M\"")
+	fmt.Fprintln(fd, "       Recommended: \"[%D % T] [%L] (%S) %M\"")
 	fmt.Fprintln(fd, "    -->")
-	fmt.Fprintln(fd, "    <property name=\"format\">[%D %T] [%L] (%S) %M</property>")
+	fmt.Fprintln(fd, "    <property name=\"format\">[%D % T] [%L] (%S) %M</property>")
 	fmt.Fprintln(fd, "    <property name=\"rotate\">false</property> <!-- true enables log rotation, otherwise append -->")
 	fmt.Fprintln(fd, "    <property name=\"maxsize\">0M</property> <!-- \\d+[KMG]? Suffixes are in terms of 2**10 -->")
 	fmt.Fprintln(fd, "    <property name=\"maxlines\">0K</property> <!-- \\d+[KMG]? Suffixes are in terms of thousands -->")
