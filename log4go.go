@@ -129,6 +129,8 @@ type LogWriter interface {
 type Filter struct {
 	Level Level
 	LogWriter
+	Filename bool
+	Funcname bool
 }
 
 // string可以认为是Filter{logger对象}的logger name
@@ -140,6 +142,9 @@ type Logger struct {
 	FilterMap
 	minLevel Level // 所有filter中最低的log level
 	sync.Once
+	// Determine if log print filename or funcname
+	Filename bool
+	Funcname bool
 }
 
 // Create a new logger.
@@ -161,7 +166,7 @@ func NewConsoleLogger(lvl Level) Logger {
 
 	os.Stderr.WriteString("warning: use of deprecated NewConsoleLogger\n")
 	var logger = Logger{FilterMap: make(FilterMap), minLevel: DEBUG}
-	logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
+	logger.FilterMap["stdout"] = &Filter{Filename: true, Funcname: true, Level: lvl, LogWriter: NewConsoleLogWriter(false)}
 
 	return logger
 }
@@ -174,7 +179,7 @@ func NewDefaultLogger(lvl Level) Logger {
 	// }
 
 	var logger = Logger{FilterMap: make(FilterMap), minLevel: lvl}
-	logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
+	logger.FilterMap["stdout"] = &Filter{Filename: true, Funcname: true, Level: lvl, LogWriter: NewConsoleLogWriter(false)}
 
 	return logger
 }
@@ -207,7 +212,7 @@ func (log Logger) Close() {
 // Returns the logger for chaining.
 // func (log *Logger) AddFilter(name string, lvl Level, writer LogWriter) Logger {
 func (log *Logger) AddFilter(name string, lvl Level, writer LogWriter) {
-	log.FilterMap[name] = &Filter{lvl, writer}
+	log.FilterMap[name] = &Filter{Filename: true, Funcname: true, Level: lvl, LogWriter: writer}
 	if lvl < log.minLevel {
 		log.minLevel = lvl
 	}
@@ -233,14 +238,32 @@ func (log Logger) intLogf(lvl Level, format string, args ...interface{}) {
 		return
 	}
 
-	// Determine caller func
-	pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
 	src := ""
-	if ok {
-		// 此处不输出filename是有道理的，因为finename会附带有文件路径，这回导致log prefix非常长, for example:
-		// [2016/09/21 14:16:39 CST] [WARN] (github.com/AlexStocks/goext/src/log.TestNewLogger: \
-		// C:/Users/AlexStocks/share/test/golang/lib/src/github.com/AlexStocks/goext/src/log/log_test.go:28) warning msg: 0
-		src = fmt.Sprintf("%s:%s:%d", filepath.Base(fileName), runtime.FuncForPC(pc).Name(), lineno)
+	src_func := ""
+	src_filename := ""
+
+	if log.Funcname || log.Filename {
+		// Determine caller func
+		pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
+		if ok {
+
+			if log.Funcname {
+				src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
+				src_func = src
+			} else {
+				src = fmt.Sprintf("%d", lineno)
+			}
+
+			if log.Filename {
+				// 此处不输出filename是有道理的，因为finename会附带有文件路径，这回导致log prefix非常长, for example:
+				// [2016/09/21 14:16:39 CST] [WARN] (github.com/AlexStocks/goext/src/log.TestNewLogger: \
+				// C:/Users/AlexStocks/share/test/golang/lib/src/github.com/AlexStocks/goext/src/log/log_test.go:28) warning msg: 0
+				src = fmt.Sprintf("%s:%s", filepath.Base(fileName), src)
+
+				src_filename = fmt.Sprintf("%s:%d", filepath.Base(fileName), lineno)
+			}
+
+		}
 	}
 
 	msg := format
@@ -248,17 +271,25 @@ func (log Logger) intLogf(lvl Level, format string, args ...interface{}) {
 		msg = fmt.Sprintf(format, args...)
 	}
 
-	// Make the log record
-	rec := &LogRecord{
-		Level:   lvl,
-		Created: time.Now(),
-		Source:  src,
-		Message: msg,
-	}
-
 	// Dispatch the logs
 	// 根据level，把log内容输出到各个logger
 	for _, filt := range log.FilterMap {
+
+		// Make the log record
+		rec := &LogRecord{
+			Level:   lvl,
+			Created: time.Now(),
+			Source:  src,
+			Message: msg,
+		}
+
+		if !filt.Filename && !filt.Funcname {
+			rec.Source = ""
+		} else if !filt.Funcname {
+			rec.Source = src_filename
+		} else if !filt.Filename {
+			rec.Source = src_func
+		}
 		if lvl < filt.Level { // log4go若在log message已经拼写完毕后再输出判断level是否合适，这会导致效率非常低
 			continue
 		}
@@ -283,23 +314,52 @@ func (log Logger) intLogc(lvl Level, closure func() string) {
 		return
 	}
 
-	// Determine caller func
-	pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
 	src := ""
-	if ok {
-		src = fmt.Sprintf("%s:%s:%d", filepath.Base(fileName), runtime.FuncForPC(pc).Name(), lineno)
-	}
+	src_func := ""
+	src_filename := ""
 
-	// Make the log record
-	rec := &LogRecord{
-		Level:   lvl,
-		Created: time.Now(),
-		Source:  src,
-		Message: closure(),
+	if log.Funcname || log.Filename {
+		// Determine caller func
+		pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
+		if ok {
+
+			if log.Funcname {
+				src = fmt.Sprintf("%s:%d", runtime.FuncForPC(pc).Name(), lineno)
+				src_func = src
+			} else {
+				src = fmt.Sprintf("%d", lineno)
+			}
+
+			if log.Filename {
+				// 此处不输出filename是有道理的，因为finename会附带有文件路径，这回导致log prefix非常长, for example:
+				// [2016/09/21 14:16:39 CST] [WARN] (github.com/AlexStocks/goext/src/log.TestNewLogger: \
+				// C:/Users/AlexStocks/share/test/golang/lib/src/github.com/AlexStocks/goext/src/log/log_test.go:28) warning msg: 0
+				src = fmt.Sprintf("%s:%s", filepath.Base(fileName), src)
+
+				src_filename = fmt.Sprintf("%s:%d", filepath.Base(fileName), lineno)
+			}
+
+		}
 	}
 
 	// Dispatch the logs
 	for _, filt := range log.FilterMap {
+
+		// Make the log record
+		rec := &LogRecord{
+			Level:   lvl,
+			Created: time.Now(),
+			Source:  src,
+			Message: closure(),
+		}
+
+		if !filt.Filename && !filt.Funcname {
+			rec.Source = ""
+		} else if !filt.Funcname {
+			rec.Source = src_filename
+		} else if !filt.Filename {
+			rec.Source = src_func
+		}
 		if lvl < filt.Level {
 			continue
 		}

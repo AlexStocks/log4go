@@ -18,6 +18,8 @@ type xmlProperty struct {
 
 type xmlFilter struct {
 	Enabled  string        `xml:"enabled,attr"`
+	Filename string        `xml:"filename,attr"`
+	Funcname string        `xml:"funcname,attr"`
 	Tag      string        `xml:"tag"`
 	Level    string        `xml:"level"`
 	Type     string        `xml:"type"`
@@ -25,7 +27,9 @@ type xmlFilter struct {
 }
 
 type xmlLoggerConfig struct {
-	Filter []xmlFilter `xml:"filter"`
+	Filename string      `xml:"filename,attr"`
+	Funcname string      `xml:"funcnameattr"`
+	Filter   []xmlFilter `xml:"filter"`
 }
 
 // Load XML configuration; see examples/example.xml for documentation
@@ -58,6 +62,9 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 			filename, err)
 		os.Exit(1)
 	}
+
+	log.Filename = xc.Filename == "true"
+	log.Funcname = xc.Funcname == "true"
 
 	for _, xmlfilt := range xc.Filter {
 		var filt LogWriter
@@ -155,7 +162,11 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 			continue
 		}
 
-		log.FilterMap[xmlfilt.Tag] = &Filter{lvl, filt}
+		log.FilterMap[xmlfilt.Tag] = &Filter{
+			Level:     lvl,
+			LogWriter: filt,
+			Filename:  log.Filename && xmlfilt.Filename != "false",
+			Funcname:  log.Funcname && xmlfilt.Funcname != "false"}
 	}
 
 	return *log

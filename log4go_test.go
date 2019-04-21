@@ -326,7 +326,8 @@ func TestLogger(t *testing.T) {
 
 func TestLogOutput(t *testing.T) {
 	const (
-		expected = "fdf3e51e444da56b4cb400f30bc47424"
+		expected         = "2671ce56a398f7b7f55117abb6b7c73e"
+		expected_windows = "40ccb00801c22439c72ce9c22e916ee2"
 	)
 
 	// Unbuffered output
@@ -339,7 +340,7 @@ func TestLogOutput(t *testing.T) {
 	l := NewLogger()
 
 	// Delete and open the output log without a timestamp (for a constant md5sum)
-	l.AddFilter("file", FINEST, NewFileLogWriter(testLogFile, false, DEFAULT_LOG_BUFSIZE).SetFormat("[%L] %M"))
+	l.AddFilter("file", FINEST, NewFileLogWriter(testLogFile, false, DEFAULT_LOG_BUFSIZE).SetFormat("[%L] (%S) %M"))
 	defer os.Remove(testLogFile)
 
 	// Send some log messages
@@ -347,6 +348,20 @@ func TestLogOutput(t *testing.T) {
 	l.Logf(ERROR, "This message is level %v", ERROR)
 	l.Logf(WARNING, "This message is level %s", WARNING)
 	l.Logc(INFO, func() string { return "This message is level INFO" })
+	l.Trace("This message is level %d", int(TRACE))
+	l.Debug("This message is level %s", DEBUG)
+	l.Fine(func() string { return fmt.Sprintf("This message is level %v", FINE) })
+	l.Finest("This message is level %v", FINEST)
+	l.Finest(FINEST, "is also this message's level")
+
+	// Send some log messages with filename and func
+	l.Filename = true
+	l.Funcname = true
+	l.Logf(ERROR, "This message is level %v", ERROR)
+	l.Logf(WARNING, "This message is level %s", WARNING)
+	l.Logc(INFO, func() string { return "This message is level INFO" })
+
+	l.Funcname = false
 	l.Trace("This message is level %d", int(TRACE))
 	l.Debug("This message is level %s", DEBUG)
 	l.Fine(func() string { return fmt.Sprintf("This message is level %v", FINE) })
@@ -362,9 +377,9 @@ func TestLogOutput(t *testing.T) {
 
 	sum := md5.New()
 	sum.Write(contents)
-	if sumstr := hex.EncodeToString(sum.Sum(nil)); sumstr != expected {
+	if sumstr := hex.EncodeToString(sum.Sum(nil)); sumstr != expected && sumstr != expected_windows {
 		t.Errorf("--- Log Contents:\n%s---", string(contents))
-		t.Fatalf("Checksum does not match: %s (expecting %s)", sumstr, expected)
+		t.Fatalf("Checksum does not match: %s (expecting %s or %s)", sumstr, expected, expected_windows)
 	}
 }
 
@@ -421,7 +436,7 @@ func TestXMLConfig(t *testing.T) {
 		t.Fatalf("Could not open %s for writing: %s", configfile, err)
 	}
 
-	fmt.Fprintln(fd, "<logging>")
+	fmt.Fprintln(fd, "<logging filename=\"true\">")
 	fmt.Fprintln(fd, "  <filter enabled=\"true\">")
 	fmt.Fprintln(fd, "    <tag>stdout</tag>")
 	fmt.Fprintln(fd, "    <type>console</type>")
@@ -450,7 +465,7 @@ func TestXMLConfig(t *testing.T) {
 	fmt.Fprintln(fd, "    <property name=\"maxlines\">0K</property> <!-- \\d+[KMG]? Suffixes are in terms of thousands -->")
 	fmt.Fprintln(fd, "    <property name=\"daily\">true</property> <!-- Automatically rotates when a log message is written after midnight -->")
 	fmt.Fprintln(fd, "  </filter>")
-	fmt.Fprintln(fd, "  <filter enabled=\"true\">")
+	fmt.Fprintln(fd, "  <filter enabled=\"true\" filename=\"false\" funcname=\"true\">")
 	fmt.Fprintln(fd, "    <tag>xmllog</tag>")
 	fmt.Fprintln(fd, "    <type>xml</type>")
 	fmt.Fprintln(fd, "    <level>TRACE</level>")
@@ -502,6 +517,32 @@ func TestXMLConfig(t *testing.T) {
 	}
 	if _, ok := log.FilterMap["xmllog"].LogWriter.(*FileLogWriter); !ok {
 		t.Fatalf("XMLConfig: Expected xmllog to be *FileLogWriter, found %T", log.FilterMap["xmllog"].LogWriter)
+	}
+
+	// Make sure filename and func
+	if !log.Filename {
+		t.Fatalf("XMLConfig: Expected log.Filename is true")
+	}
+	if log.Funcname {
+		t.Fatalf("XMLConfig: Expected log.Funcname is false")
+	}
+	if !log.FilterMap["stdout"].Filename {
+		t.Fatalf("XMLConfig: Expected log.FilterMap[\"stdout\"].Filename is true")
+	}
+	if !log.FilterMap["file"].Filename {
+		t.Fatalf("XMLConfig: Expected log.FilterMap[\"file\"].Filename is true")
+	}
+	if log.FilterMap["xmllog"].Filename {
+		t.Fatalf("XMLConfig: Expected log.FilterMap[\"xmllog\"].Filename is false")
+	}
+	if log.FilterMap["stdout"].Funcname {
+		t.Fatalf("XMLConfig: Expected log.FilterMap[\"stdout\"].Funcname is false")
+	}
+	if log.FilterMap["file"].Funcname {
+		t.Fatalf("XMLConfig: Expected log.FilterMap[\"file\"].Funcname is false")
+	}
+	if log.FilterMap["xmllog"].Funcname {
+		t.Fatalf("XMLConfig: Expected log.FilterMap[\"xmllog\"].Funcname is false")
 	}
 
 	// Make sure levels are set

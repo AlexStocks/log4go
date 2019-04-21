@@ -1,4 +1,4 @@
-<logging>
+<logging filename="true">
   <filter enabled="true">
     <tag>stdout</tag>
     <type>console</type>
@@ -29,7 +29,7 @@
     <property name="maxbackup">16</property> <!-- \d+ -->
     <property name="daily">true</property> <!-- Automatically rotates when a log message is written after midnight -->
   </filter>
-  <filter enabled="true">
+  <filter enabled="true" filename="false" funcname="true">
     <tag>xmllog</tag>
     <type>xml</type>
     <level>TRACE</level>
