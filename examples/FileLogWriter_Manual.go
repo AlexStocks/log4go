@@ -75,6 +75,8 @@ func testLog(json bool) {
 }
 
 func main() {
+	defer l4g.Close()
+
 	testLog(false)
 	testLog(true)
 }

@@ -12,7 +12,8 @@ import (
 
 // This log writer sends output to a socket
 type SocketLogWriter struct {
-	rec chan *LogRecord
+	caller bool
+	rec    chan *LogRecord
 	sync.Once
 }
 
@@ -47,6 +48,16 @@ func (w *SocketLogWriter) Close() {
 	})
 }
 
+// This func shows whether output filename/function/lineno info in log
+func (w *SocketLogWriter) GetCallerFlag() bool { return w.caller }
+
+// Set whether output the filename/function name/line number info or not.
+// Must be called before the first log message is written.
+func (w *SocketLogWriter) SetCallerFlag(flag bool) *SocketLogWriter {
+	w.caller = flag
+	return w
+}
+
 func NewSocketLogWriter(proto, hostport string) *SocketLogWriter {
 	var w = &SocketLogWriter{}
 	sock, err := net.Dial(proto, hostport)
@@ -74,6 +85,9 @@ func NewSocketLogWriter(proto, hostport string) *SocketLogWriter {
 			//	fmt.Fprint(os.Stderr, errStr)
 			//	return
 			//}
+			if !w.caller {
+				rec.Source = ""
+			}
 
 			//recJson, _ := json.Marshal(rec)
 			_, err = sock.Write(rec.JSON())

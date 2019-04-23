@@ -15,11 +15,17 @@ var (
 
 func init() {
 	Global = NewDefaultLogger(DEBUG)
+	//Global.caller = false // 默认添加了一个 console writer，会导致此处的caller 为 true
 }
 
 // Wrapper for (*Logger).LoadConfiguration
 func LoadConfiguration(filename string) {
 	Global.LoadConfiguration(filename)
+}
+
+// SetCallerFlag enable/disable output caller info (file/func/line)
+func SetCallerFlag(caller bool) {
+	Global.caller = caller
 }
 
 // Wrapper for (*Logger).AddFilter

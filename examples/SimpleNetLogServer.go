@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/AlexStocks/log4go"
 	"net"
 	"os"
 )
@@ -19,6 +20,8 @@ func e(err error) {
 }
 
 func main() {
+	defer log4go.Close()
+
 	flag.Parse()
 
 	// Bind to the port

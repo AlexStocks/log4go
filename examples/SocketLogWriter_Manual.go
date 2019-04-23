@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	defer l4g.Close()
 	log := l4g.NewLogger()
 	log.AddFilter("network", l4g.FINEST, l4g.NewSocketLogWriter("udp", "127.0.0.1:12124"))
 

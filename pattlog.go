@@ -126,13 +126,14 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 
 // This is the standard writer that prints to standard output.
 type FormatLogWriter struct {
-	rec chan *LogRecord
+	caller bool
+	rec    chan *LogRecord
 	sync.Once
 }
 
 // This creates a new FormatLogWriter
 func NewFormatLogWriter(out io.Writer, format string) *FormatLogWriter {
-	var w = &FormatLogWriter{}
+	var w = &FormatLogWriter{caller: true}
 	w.rec = make(chan *LogRecord, LogBufferLength)
 	go w.run(out, format)
 	return w
@@ -140,8 +141,22 @@ func NewFormatLogWriter(out io.Writer, format string) *FormatLogWriter {
 
 func (w *FormatLogWriter) run(out io.Writer, format string) {
 	for rec := range w.rec {
+		if !w.caller {
+			rec.Source = ""
+		}
+
 		fmt.Fprint(out, FormatLogRecord(format, rec))
 	}
+}
+
+// This func shows whether output filename/function/lineno info in log
+func (w *FormatLogWriter) GetCallerFlag() bool { return w.caller }
+
+// Set whether output the filename/function name/line number info or not.
+// Must be called before the first log message is written.
+func (w *FormatLogWriter) SetCallerFlag(flag bool) *FormatLogWriter {
+	w.caller = flag
+	return w
 }
 
 // This is the FormatLogWriter's output method.  This will block if the output

@@ -37,13 +37,14 @@
 //   behind-the-scenes, and the LogWrite method no longer has return values.
 //
 // Future work: (please let me know if you think I should work on any of these particularly)
-// - Log file rotation
 // - Logging configuration files ala log4j
 // - Have the ability to remove filters?
 // - Have GetInfoChannel, GetDebugChannel, etc return a chan string that allows
 //   for another method of logging
 // - Add an XML filter type
 package log4go
+
+// log4go 的日志模型是同一条 log 内容可以输出给多个 logger(filter)
 
 import (
 	"fmt"
@@ -57,9 +58,9 @@ import (
 
 // Version information
 const (
-	L4G_VERSION = "log4go-v3.1.0"
+	L4G_VERSION = "log4go-v3.2.0"
 	L4G_MAJOR   = 3
-	L4G_MINOR   = 1
+	L4G_MINOR   = 2
 	L4G_BUILD   = 0
 )
 
@@ -120,6 +121,9 @@ type LogWriter interface {
 	// This should clean up anything lingering about the LogWriter, as it is called before
 	// the LogWriter is removed.  LogWrite should not be called after Close.
 	Close()
+
+	// This func shows whether output filename/function/lineno info in log
+	GetCallerFlag() bool
 }
 
 /****** Logger ******/
@@ -138,16 +142,17 @@ type FilterMap map[string]*Filter
 // written.
 type Logger struct {
 	FilterMap
-	minLevel Level // 所有filter中最低的log level
+	minLevel Level // 所有 filter 中最低的 log level
+	// 若为 false, 所有 filter 都不输出 caller 信息
+	// Logger 的 callerFlag 默认为 false， 而各个 filter 的 caller 默认为 true
+	caller bool
 	sync.Once
 }
 
 // Create a new logger.
-//
-// DEPRECATED: Use make(Logger) instead.
 func NewLogger() Logger {
 	// os.Stderr.WriteString("warning: use of deprecated NewLogger\n")
-	return Logger{FilterMap: make(FilterMap), minLevel: DEBUG}
+	return Logger{FilterMap: make(FilterMap), minLevel: DEBUG, caller: false}
 }
 
 // Create a new logger with a "stdout" filter configured to send log messages at
@@ -160,8 +165,12 @@ func NewConsoleLogger(lvl Level) Logger {
 	// }
 
 	os.Stderr.WriteString("warning: use of deprecated NewConsoleLogger\n")
-	var logger = Logger{FilterMap: make(FilterMap), minLevel: DEBUG}
-	logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
+	var logger = Logger{FilterMap: make(FilterMap), minLevel: DEBUG, caller: false}
+	// logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
+
+	writer := NewConsoleLogWriter(false)
+	filter := &Filter{Level: lvl, LogWriter: writer}
+	logger.AddFilter("stdout", DEBUG, filter)
 
 	return logger
 }
@@ -174,7 +183,10 @@ func NewDefaultLogger(lvl Level) Logger {
 	// }
 
 	var logger = Logger{FilterMap: make(FilterMap), minLevel: lvl}
-	logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
+	// logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
+	writer := NewConsoleLogWriter(false)
+	filter := &Filter{Level: lvl, LogWriter: writer}
+	logger.AddFilter("stdout", DEBUG, filter)
 
 	return logger
 }
@@ -211,6 +223,9 @@ func (log *Logger) AddFilter(name string, lvl Level, writer LogWriter) {
 	if lvl < log.minLevel {
 		log.minLevel = lvl
 	}
+	if writer.GetCallerFlag() {
+		log.caller = true
+	}
 
 	// return *log
 }
@@ -234,13 +249,15 @@ func (log Logger) intLogf(lvl Level, format string, args ...interface{}) {
 	}
 
 	// Determine caller func
-	pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
 	src := ""
-	if ok {
-		// 此处不输出filename是有道理的，因为finename会附带有文件路径，这回导致log prefix非常长, for example:
-		// [2016/09/21 14:16:39 CST] [WARN] (github.com/AlexStocks/goext/src/log.TestNewLogger: \
-		// C:/Users/AlexStocks/share/test/golang/lib/src/github.com/AlexStocks/goext/src/log/log_test.go:28) warning msg: 0
-		src = fmt.Sprintf("%s:%s:%d", filepath.Base(fileName), runtime.FuncForPC(pc).Name(), lineno)
+	if log.caller {
+		pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
+		if ok {
+			// 此处不输出filename是有道理的，因为finename会附带有文件路径，这回导致log prefix非常长, for example:
+			// [2016/09/21 14:16:39 CST] [WARN] (github.com/AlexStocks/goext/src/log.TestNewLogger: \
+			// C:/Users/AlexStocks/share/test/golang/lib/src/github.com/AlexStocks/goext/src/log/log_test.go:28) warning msg: 0
+			src = fmt.Sprintf("%s:%s:%d", filepath.Base(fileName), runtime.FuncForPC(pc).Name(), lineno)
+		}
 	}
 
 	msg := format
@@ -284,10 +301,12 @@ func (log Logger) intLogc(lvl Level, closure func() string) {
 	}
 
 	// Determine caller func
-	pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
 	src := ""
-	if ok {
-		src = fmt.Sprintf("%s:%s:%d", filepath.Base(fileName), runtime.FuncForPC(pc).Name(), lineno)
+	if log.caller {
+		pc, fileName, lineno, ok := runtime.Caller(logCallerLevel)
+		if ok {
+			src = fmt.Sprintf("%s:%s:%d", filepath.Base(fileName), runtime.FuncForPC(pc).Name(), lineno)
+		}
 	}
 
 	// Make the log record
@@ -322,6 +341,9 @@ func (log Logger) Log(lvl Level, source, message string) {
 	// }
 	if lvl < log.minLevel {
 		return
+	}
+	if !log.caller {
+		source = ""
 	}
 
 	// Make the log record

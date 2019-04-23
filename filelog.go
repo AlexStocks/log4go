@@ -7,13 +7,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
 // This log writer sends output to a file
 type FileLogWriter struct {
-	rec chan *LogRecord
+	rec chan LogRecord
 	rot chan bool
 
 	// The opened file
@@ -44,6 +45,8 @@ type FileLogWriter struct {
 	rotate    bool
 	maxbackup int
 
+	caller bool
+
 	sync.Once
 }
 
@@ -60,7 +63,7 @@ func (w *FileLogWriter) LogWrite(rec *LogRecord) {
 		}
 	}()
 
-	w.rec <- rec
+	w.rec <- *rec
 }
 
 func (w *FileLogWriter) Close() {
@@ -83,6 +86,9 @@ func (w *FileLogWriter) Close() {
 	})
 }
 
+// This func shows whether output filename/function/lineno info in log
+func (w *FileLogWriter) GetCallerFlag() bool { return w.caller }
+
 // NewFileLogWriter creates a new LogWriter which writes to the given file and
 // has rotation enabled if rotate is true and set a memory alignment buffer if
 // bufSize is non-zero.
@@ -95,7 +101,7 @@ func (w *FileLogWriter) Close() {
 //   [%D %T] [%L] (%S) %M
 func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 	w := &FileLogWriter{
-		rec:       make(chan *LogRecord, LogBufferLength),
+		rec:       make(chan LogRecord, LogBufferLength),
 		rot:       make(chan bool),
 		filename:  fname,
 		json:      false,
@@ -131,6 +137,10 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				if !ok { // rec channel关闭了，退出这个log输出goroutine
 					return
 				}
+				if !w.caller {
+					rec.Source = ""
+				}
+
 				// 满足相关设定，切割文件了
 				now := time.Now()
 				if (w.maxlines > 0 && w.maxlines_curlines >= w.maxlines) ||
@@ -146,7 +156,7 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				// 写log
 				var recStr string
 				if !w.json {
-					recStr = FormatLogRecord(w.format, rec)
+					recStr = FormatLogRecord(w.format, &rec)
 				} else {
 					//recJson, _ := json.Marshal(rec)
 					//recStr = String(recJson)
@@ -381,13 +391,30 @@ func (w *FileLogWriter) SetRotate(rotate bool) *FileLogWriter {
 	return w
 }
 
+// Set whether output the filename/function name/line number info or not.
+// Must be called before the first log message is written.
+func (w *FileLogWriter) SetCallerFlag(flag bool) *FileLogWriter {
+	w.caller = flag
+	if !w.caller {
+		// this is a xml log writer
+		if strings.Contains(w.format, "<timestamp>%D %T</timestamp>") {
+			w.SetFormat(
+				`  <record level="%L">
+    <timestamp>%D %T</timestamp>
+    <message>%M</message>
+  </record>`).SetHeadFoot("<log created=\"%D %T\">", "</log>")
+		}
+	}
+	return w
+}
+
 // NewXMLLogWriter is a utility method for creating a FileLogWriter set up to
 // output XML record log messages instead of line-based ones.
 func NewXMLLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 	return NewFileLogWriter(fname, rotate, bufSize).SetFormat(
-		`	<record level="%L">
-		<timestamp>%D %T</timestamp>
-		<source>%S</source>
-		<message>%M</message>
-	</record>`).SetHeadFoot("<log created=\"%D %T\">", "</log>")
+		`  <record level="%L">
+    <timestamp>%D %T</timestamp>
+    <source>%S</source>
+    <message>%M</message>
+  </record>`).SetHeadFoot("<log created=\"%D %T\">", "</log>")
 }

@@ -59,13 +59,15 @@ func (r LogRecord) JSON() []byte {
 	//buf.WriteString("\"source\":")
 	//buf.WriteString("\"")
 
-	buf.WriteString(",\"source\":\"")
-	buf.WriteString(r.Source)
-	//buf.WriteString("\"")
-	//buf.WriteString(",")
-	//
-	//buf.WriteString("\"log\":")
-	//buf.WriteString("\"")
+	if len(r.Source) != 0 {
+		buf.WriteString(",\"source\":\"")
+		buf.WriteString(r.Source)
+		//buf.WriteString("\"")
+		//buf.WriteString(",")
+		//
+		//buf.WriteString("\"log\":")
+		//buf.WriteString("\"")
+	}
 
 	buf.WriteString("\",\"log\":\"")
 	buf.WriteString(r.Message)

@@ -155,7 +155,8 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 			continue
 		}
 
-		log.FilterMap[xmlfilt.Tag] = &Filter{lvl, filt}
+		//log.FilterMap[xmlfilt.Tag] = &Filter{lvl, filt}
+		log.AddFilter(xmlfilt.Tag, lvl, filt)
 	}
 
 	return *log
@@ -164,6 +165,7 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 func xmlToConsoleLogWriter(filename string, props []xmlProperty, enabled bool) (*ConsoleLogWriter, bool) {
 	jsonFormat := false
 	format := "[%D %T] [%L] (%S) %M"
+	callerFlag := true
 
 	// Parse properties
 	for _, prop := range props {
@@ -172,6 +174,9 @@ func xmlToConsoleLogWriter(filename string, props []xmlProperty, enabled bool) (
 			jsonFormat = strings.Trim(prop.Value, " \r\n") != "false"
 		case "format":
 			format = strings.Trim(prop.Value, " \r\n")
+		case "caller":
+			// 为了兼容以往设置，默认 caller 为 true，只有明确设置其为 "false" 时，才设置其为 false
+			callerFlag = !(strings.Trim(prop.Value, " \r\n") == "false")
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Warning: Unknown property \"%s\" for console filter in %s\n",
@@ -186,6 +191,7 @@ func xmlToConsoleLogWriter(filename string, props []xmlProperty, enabled bool) (
 
 	clw := NewConsoleLogWriter(jsonFormat)
 	clw.SetFormat(format)
+	clw.SetCallerFlag(callerFlag)
 
 	return clw, true
 }
@@ -230,11 +236,12 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 	jsonformat := false
 	format := "[%D %T] [%L] (%S) %M"
 	maxlines := 0
-	var maxsize int64 = 0
+	maxsize := int64(0)
 	maxbackup := 0
 	daily := false
 	rotate := false
 	bufSize := 0
+	callerFlag := true
 
 	// Parse properties
 	for _, prop := range props {
@@ -257,6 +264,9 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 			daily = strings.Trim(prop.Value, " \r\n") != "false"
 		case "rotate":
 			rotate = strings.Trim(prop.Value, " \r\n") != "false"
+		case "caller":
+			// 为了兼容以往设置，默认 caller 为 true，只有明确设置其为 "false" 时，才设置其为 false
+			callerFlag = !(strings.Trim(prop.Value, " \r\n") == "false")
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Warning: Unknown property \"%s\" for file filter in %s\n",
@@ -284,16 +294,19 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 	flw.SetRotateSize(maxsize)
 	flw.SetRotateMaxBackup(maxbackup)
 	flw.SetRotateDaily(daily)
+	flw.SetCallerFlag(callerFlag)
 	return flw, true
 }
 
 func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*FileLogWriter, bool) {
 	file := ""
 	maxrecords := 0
-	var maxsize int64 = 0
+	maxsize := int64(0)
+	maxbackup := 0
 	daily := false
 	rotate := false
 	bufSize := 0
+	callerFlag := true
 
 	// Parse properties
 	for _, prop := range props {
@@ -306,10 +319,15 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 			maxsize = int64(strToNumSuffix(strings.Trim(prop.Value, " \r\n"), 1024))
 		case "bufsize":
 			bufSize = strToInt(strings.Trim(prop.Value, " \r\n"))
+		case "maxbackup":
+			maxbackup = strToInt(strings.Trim(prop.Value, " \r\n"))
 		case "daily":
 			daily = strings.Trim(prop.Value, " \r\n") != "false"
 		case "rotate":
 			rotate = strings.Trim(prop.Value, " \r\n") != "false"
+		case "caller":
+			// 为了兼容以往设置，默认 caller 为 true，只有明确设置其为 "false" 时，才设置其为 false
+			callerFlag = !(strings.Trim(prop.Value, " \r\n") == "false")
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Warning: Unknown property \"%s\" for xml filter in %s\n",
@@ -333,13 +351,17 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 	xlw := NewXMLLogWriter(file, rotate, bufSize)
 	xlw.SetRotateLines(maxrecords)
 	xlw.SetRotateSize(maxsize)
+	xlw.SetRotateMaxBackup(maxbackup)
 	xlw.SetRotateDaily(daily)
+	xlw.SetCallerFlag(callerFlag)
+
 	return xlw, true
 }
 
 func xmlToSocketLogWriter(filename string, props []xmlProperty, enabled bool) (*SocketLogWriter, bool) {
 	endpoint := ""
 	protocol := "udp"
+	callerFlag := true
 
 	// Parse properties
 	for _, prop := range props {
@@ -348,6 +370,9 @@ func xmlToSocketLogWriter(filename string, props []xmlProperty, enabled bool) (*
 			endpoint = strings.Trim(prop.Value, " \r\n")
 		case "protocol":
 			protocol = strings.Trim(prop.Value, " \r\n")
+		case "caller":
+			// 为了兼容以往设置，默认 caller 为 true，只有明确设置其为 "false" 时，才设置其为 false
+			callerFlag = !(strings.Trim(prop.Value, " \r\n") == "false")
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Warning: Unknown property \"%s\" for file filter in %s\n",
@@ -368,5 +393,8 @@ func xmlToSocketLogWriter(filename string, props []xmlProperty, enabled bool) (*
 		return nil, true
 	}
 
-	return NewSocketLogWriter(protocol, endpoint), true
+	writer := NewSocketLogWriter(protocol, endpoint)
+	writer.SetCallerFlag(callerFlag)
+
+	return writer, true
 }

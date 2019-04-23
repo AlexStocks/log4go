@@ -18,6 +18,7 @@ var stdout io.Writer = os.Stdout
 type ConsoleLogWriter struct {
 	json   bool
 	format string
+	caller bool
 	lock   sync.Mutex
 	w      chan *LogRecord
 	sync.Once
@@ -29,6 +30,8 @@ func NewConsoleLogWriter(json bool) *ConsoleLogWriter {
 		json:   json,
 		format: "[%T %D] [%L] (%S) %M",
 		w:      make(chan *LogRecord, LogBufferLength),
+		// 兼容以往配置，默认输出 file/func/lineno
+		caller: true,
 	}
 	go consoleWriter.run(stdout)
 	return consoleWriter
@@ -40,6 +43,10 @@ func (c *ConsoleLogWriter) SetJson(json bool) {
 
 func (c *ConsoleLogWriter) SetFormat(format string) {
 	c.format = format
+}
+
+func (c *ConsoleLogWriter) SetCallerFlag(callerFlag bool) {
+	c.caller = callerFlag
 }
 
 func String(b []byte) (s string) {
@@ -65,6 +72,10 @@ func (c *ConsoleLogWriter) run(out io.Writer) {
 	//}
 	var logString string
 	for rec := range c.w {
+		if !c.caller {
+			rec.Source = ""
+		}
+
 		if !c.json {
 			logString = FormatLogRecord(c.format, rec)
 		} else {
@@ -109,3 +120,6 @@ func (c *ConsoleLogWriter) Close() {
 		time.Sleep(50 * time.Millisecond) // Try to give console I/O time to complete
 	})
 }
+
+// This func shows whether output filename/function/lineno info in log
+func (c *ConsoleLogWriter) GetCallerFlag() bool { return c.caller }
