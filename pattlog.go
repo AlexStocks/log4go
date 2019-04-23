@@ -90,6 +90,7 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 	pieces := bytes.Split([]byte(format), []byte{'%'})
 
 	// Iterate over the pieces, replacing known formats
+	sourceFlag := true
 	for i, piece := range pieces {
 		if i > 0 && len(piece) > 0 {
 			switch piece[0] {
@@ -104,14 +105,20 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 			case 'L':
 				out.WriteString(levelStrings[rec.Level])
 			case 'S':
-				out.WriteString(rec.Source)
+				if rec.Source != "" {
+					out.WriteString(rec.Source)
+				} else {
+					out.UnreadByte()
+					out.Truncate(out.Len() - 1)
+					sourceFlag = false
+				}
 			case 's':
 				slice := strings.Split(rec.Source, "/")
 				out.WriteString(slice[len(slice)-1])
 			case 'M':
 				out.WriteString(rec.Message)
 			}
-			if len(piece) > 1 {
+			if len(piece) > 1 && sourceFlag {
 				out.Write(piece[1:])
 			}
 		} else if len(piece) > 0 {
