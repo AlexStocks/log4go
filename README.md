@@ -10,7 +10,13 @@ Installation:
 Usage:
 - Add the following import:
 
-import l4g "github.com/AlexStocks/log4go"
+``` Go
+  import l4g "github.com/AlexStocks/log4go"
+
+  func main() {
+  	defer l4g.Close() // to close l4g.Global
+  }
+```
 
 Feature list:
 
@@ -20,4 +26,4 @@ Feature list:
 * Output escape query string safety
 * Add filename to every log line
 * Create log path if log path does not exist
-
+* Add caller option to let log4go do not output file/function-name/line-number
