@@ -13,7 +13,7 @@ import (
 // This log writer sends output to a socket
 type SocketLogWriter struct {
 	caller bool
-	rec    chan *LogRecord
+	rec    chan LogRecord
 	sync.Once
 }
 
@@ -34,7 +34,7 @@ func (w *SocketLogWriter) LogWrite(rec *LogRecord) {
 
 	recBufLen := len(w.rec)
 	if recBufLen < SocketLogBufferLength {
-		w.rec <- rec
+		w.rec <- *rec
 	} else {
 		fmt.Fprintf(os.Stderr,
 			"recBufLen:%d, LogBufferLength:%d, logRecord:%+v\n",
@@ -66,7 +66,7 @@ func NewSocketLogWriter(proto, hostport string) *SocketLogWriter {
 		return nil
 	}
 
-	w.rec = make(chan *LogRecord, LogBufferLength)
+	w.rec = make(chan LogRecord, LogBufferLength)
 
 	go func() {
 		defer func() {

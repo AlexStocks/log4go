@@ -20,7 +20,7 @@ type ConsoleLogWriter struct {
 	format string
 	caller bool
 	lock   sync.Mutex
-	w      chan *LogRecord
+	w      chan LogRecord
 	sync.Once
 }
 
@@ -29,7 +29,7 @@ func NewConsoleLogWriter(json bool) *ConsoleLogWriter {
 	consoleWriter := &ConsoleLogWriter{
 		json:   json,
 		format: "[%T %D] [%L] (%S) %M",
-		w:      make(chan *LogRecord, LogBufferLength),
+		w:      make(chan LogRecord, LogBufferLength),
 		// 兼容以往配置，默认输出 file/func/lineno
 		caller: true,
 	}
@@ -77,7 +77,7 @@ func (c *ConsoleLogWriter) run(out io.Writer) {
 		}
 
 		if !c.json {
-			logString = FormatLogRecord(c.format, rec)
+			logString = FormatLogRecord(c.format, &rec)
 		} else {
 			recBytes := append(rec.JSON(), Slice(newLine)...)
 			logString = String(recBytes)
@@ -108,7 +108,7 @@ func (c *ConsoleLogWriter) LogWrite(rec *LogRecord) {
 		}
 	}()
 
-	c.w <- rec
+	c.w <- *rec
 }
 
 // Close stops the logger from sending messages to standard output.  Attempts to

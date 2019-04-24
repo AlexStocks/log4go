@@ -134,14 +134,14 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 // This is the standard writer that prints to standard output.
 type FormatLogWriter struct {
 	caller bool
-	rec    chan *LogRecord
+	rec    chan LogRecord
 	sync.Once
 }
 
 // This creates a new FormatLogWriter
 func NewFormatLogWriter(out io.Writer, format string) *FormatLogWriter {
 	var w = &FormatLogWriter{caller: true}
-	w.rec = make(chan *LogRecord, LogBufferLength)
+	w.rec = make(chan LogRecord, LogBufferLength)
 	go w.run(out, format)
 	return w
 }
@@ -152,7 +152,7 @@ func (w *FormatLogWriter) run(out io.Writer, format string) {
 			rec.Source = ""
 		}
 
-		fmt.Fprint(out, FormatLogRecord(format, rec))
+		fmt.Fprint(out, FormatLogRecord(format, &rec))
 	}
 }
 
@@ -180,7 +180,7 @@ func (w *FormatLogWriter) LogWrite(rec *LogRecord) {
 		}
 	}()
 
-	w.rec <- rec
+	w.rec <- *rec
 }
 
 // Close stops the logger from sending messages to standard output.  Attempts to
