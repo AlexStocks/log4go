@@ -27,3 +27,4 @@ Feature list:
 * Add filename to every log line
 * Create log path if log path does not exist
 * Add caller option to let log4go do not output file/function-name/line-number
+* Add %P to output process ID

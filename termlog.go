@@ -16,6 +16,7 @@ var stdout io.Writer = os.Stdout
 
 // This is the standard writer that prints to standard output.
 type ConsoleLogWriter struct {
+	LogCloser
 	json   bool
 	format string
 	caller bool
@@ -33,6 +34,8 @@ func NewConsoleLogWriter(json bool) *ConsoleLogWriter {
 		// 兼容以往配置，默认输出 file/func/lineno
 		caller: true,
 	}
+	consoleWriter.LogCloserInit()
+
 	go consoleWriter.run(stdout)
 	return consoleWriter
 }
@@ -72,6 +75,10 @@ func (c *ConsoleLogWriter) run(out io.Writer) {
 	//}
 	var logString string
 	for rec := range c.w {
+		if c.IsClosed(rec) {
+			return
+		}
+
 		if !c.caller {
 			rec.Source = ""
 		}
@@ -115,6 +122,7 @@ func (c *ConsoleLogWriter) LogWrite(rec *LogRecord) {
 // send log messages to this logger after a Close have undefined behavior.
 func (c *ConsoleLogWriter) Close() {
 	c.Once.Do(func() {
+		c.WaitClosed(c.w)
 		close(c.w)
 		c.w = nil
 		time.Sleep(50 * time.Millisecond) // Try to give console I/O time to complete

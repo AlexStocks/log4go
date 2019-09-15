@@ -41,6 +41,10 @@ type LogRecord struct {
 	Message string    `json:"log,omitempty"`       // The log message
 }
 
+func (r LogRecord) IsNil() bool {
+	return r.Level == LEVEL_END
+}
+
 // 不要尝试使用json.Marshal，这个函数使用了反射，效率很低，详细结果见测试
 // func (r LogRecord) MarshalJSON() ([]byte, error) {
 func (r LogRecord) JSON() []byte {

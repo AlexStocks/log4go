@@ -88,11 +88,12 @@ const (
 	WARNING
 	ERROR
 	CRITICAL
+	LEVEL_END
 )
 
 // Logging level strings
 var (
-	levelStrings = [...]string{"FNST", "FINE", "DEBG", "TRAC", "INFO", "WARN", "EROR", "CRIT"}
+	levelStrings = [...]string{"FNST", "FINE", "DEBG", "TRAC", "INFO", "WARN", "EROR", "CRIT", "END"}
 )
 
 func (l Level) String() string {
@@ -110,6 +111,34 @@ var (
 	SocketLogBufferLength               = 8192
 	SockFailWaitTimeout   time.Duration = 1e8 // 100ms
 )
+
+/****** LogCloser ******/
+type LogCloser struct {
+	done chan struct{}
+}
+
+func (lc *LogCloser) LogCloserInit() {
+	lc.done = make(chan struct{})
+}
+
+// notyfy the logger log to end
+func (lc *LogCloser) IsClosed(rec LogRecord) bool {
+	if rec.IsNil() && lc.done != nil {
+		lc.done <- struct{}{}
+		return true
+	}
+	return false
+}
+
+// add nil to end of res and wait that EndNotify is call
+func (lc *LogCloser) WaitClosed(recQ chan LogRecord) {
+	recQ <- LogRecord{
+		Level: LEVEL_END,
+	}
+	if lc.done != nil {
+		<-lc.done
+	}
+}
 
 /****** LogWriter ******/
 

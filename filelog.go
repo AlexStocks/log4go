@@ -14,6 +14,8 @@ import (
 
 // This log writer sends output to a file
 type FileLogWriter struct {
+	LogCloser
+
 	rec chan LogRecord
 	rot chan bool
 
@@ -69,9 +71,10 @@ func (w *FileLogWriter) LogWrite(rec *LogRecord) {
 func (w *FileLogWriter) Close() {
 	w.Once.Do(func() {
 		// Wait write coroutine
-		for len(w.rec) > 0 {
-			time.Sleep(100 * time.Millisecond)
-		}
+		// for len(w.rec) > 0 {
+		// 	time.Sleep(100 * time.Millisecond)
+		// }
+		w.WaitClosed(w.rec)
 
 		close(w.rec)
 
@@ -110,6 +113,9 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 		maxbackup: 999,
 	}
 
+	// init LogCloser
+	w.LogCloserInit()
+
 	// open the file for the first time
 	if err := w.intOpen(bufSize); err != nil {
 		fmt.Fprintf(os.Stderr, "FileLogWriter(filename:%q, bufSize:%d): %s\n", w.filename, bufSize, err)
@@ -137,6 +143,11 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				if !ok { // rec channel关闭了，退出这个log输出goroutine
 					return
 				}
+
+				if w.IsClosed(rec) {
+					return
+				}
+
 				if !w.caller {
 					rec.Source = ""
 				}

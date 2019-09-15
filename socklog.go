@@ -12,6 +12,7 @@ import (
 
 // This log writer sends output to a socket
 type SocketLogWriter struct {
+	LogCloser
 	caller bool
 	rec    chan LogRecord
 	sync.Once
@@ -44,6 +45,7 @@ func (w *SocketLogWriter) LogWrite(rec *LogRecord) {
 
 func (w *SocketLogWriter) Close() {
 	w.Once.Do(func() {
+		w.WaitClosed(w.rec)
 		close(w.rec)
 	})
 }
@@ -60,6 +62,9 @@ func (w *SocketLogWriter) SetCallerFlag(flag bool) *SocketLogWriter {
 
 func NewSocketLogWriter(proto, hostport string) *SocketLogWriter {
 	var w = &SocketLogWriter{}
+
+	w.LogCloserInit()
+
 	sock, err := net.Dial(proto, hostport)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "NewSocketLogWriter(connect %q): %s\n", hostport, err)
@@ -85,6 +90,11 @@ func NewSocketLogWriter(proto, hostport string) *SocketLogWriter {
 			//	fmt.Fprint(os.Stderr, errStr)
 			//	return
 			//}
+
+			if w.IsClosed(rec) {
+				return
+			}
+
 			if !w.caller {
 				rec.Source = ""
 			}
