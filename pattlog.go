@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -28,12 +30,34 @@ var (
 	formatCache   = &formatCacheType{}
 	muFormatCache = sync.Mutex{}
 	newLine       = "\n"
+	logProcessID  = strconv.Itoa(os.Getpid())
 )
 
 func init() {
 	if runtime.GOOS == "windows" {
 		newLine = "\r\n"
 	}
+}
+
+var (
+	// pool used to format log
+	bufPool sync.Pool
+)
+
+func newBuf() *bytes.Buffer {
+	if v := bufPool.Get(); v != nil {
+		return v.(*bytes.Buffer)
+	}
+
+	// for a log, 4K should be enough for most case
+	// bytes.Buffer will reallocate a new []byte if previous is run out.
+	// when reallocation occurred, the old []byte can only be freed by GC
+	return bytes.NewBuffer(make([]byte, 0, 4096))
+}
+
+func putBuf(bb *bytes.Buffer) {
+	bb.Reset()
+	bufPool.Put(bb)
 }
 
 func setFormatCache(f *formatCacheType) {
@@ -54,6 +78,7 @@ func getFormatCache() *formatCacheType {
 // %D - Date (2006/01/02)
 // %d - Date (01/02/06)
 // %L - Level (FNST, FINE, DEBG, TRAC, WARN, EROR, CRIT)
+// %P - Pid of process
 // %S - Source
 // %M - Message
 // Ignores unknown formats
@@ -66,7 +91,10 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 		return ""
 	}
 
-	out := bytes.NewBuffer(make([]byte, 0, 64))
+	//out := bytes.NewBuffer(make([]byte, 0, 64))
+	out := newBuf()
+	defer putBuf(out)
+
 	secs := rec.Created.UnixNano() / 1e9
 
 	cache := getFormatCache()
@@ -104,6 +132,8 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 				out.WriteString(cache.shortDate)
 			case 'L':
 				out.WriteString(levelStrings[rec.Level])
+			case 'P':
+				out.WriteString(logProcessID)
 			case 'S':
 				if rec.Source != "" {
 					out.WriteString(rec.Source)
