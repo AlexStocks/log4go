@@ -176,6 +176,18 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				}
 				n, err := fmt.Fprint(w.file, recStr)
 				if err != nil {
+					// Recreate log file when the file was lost
+					_, err := os.Stat(w.filename)
+					if nil != err && os.IsNotExist(err) {
+						w.file.Close()
+						fd, err := os.OpenFile(w.filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "FileLogWriter(%q): %s\n", w.filename, err)
+							return
+						}
+						w.file = fd
+					}
+
 					fmt.Fprintf(os.Stderr, "FileLogWriter(%q): %s\n", w.filename, err)
 					return
 				}
