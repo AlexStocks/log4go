@@ -256,19 +256,18 @@ func (w *FileLogWriter) intRotate() error {
 			//}
 
 			// Rename the file to its newfound home
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 150; i++ {
 				// For loop to handle failure of rename when file is accessed by agent
 				err = os.Rename(w.filename, fname)
 				if err != nil {
 					fmt.Println("Rename clash - Retrying")
+					time.Sleep(100e6) // sleep 100 ms
 					continue
 				}
 
 				break
 			}
 		}
-
-	}
 	}
 
 	// Open the log file
