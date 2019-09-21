@@ -30,6 +30,15 @@ func newLogRecord(lvl Level, src string, msg string) *LogRecord {
 	}
 }
 
+func TestNextTime(t *testing.T) {
+	now := time.Now()
+	year, month, day := now.Date()
+	hour, _, _ := now.Clock()
+	preTime := time.Date(year, month, day, hour-1, 0, 0, 0, time.Local)
+	nextTime := time.Date(year, month, day, hour+1, 0, 0, 0, time.Local)
+	t.Logf("now %s, pre %s, next %s\n", now.String(), preTime.String(), nextTime.String())
+}
+
 func TestELog(t *testing.T) {
 	fmt.Printf("Testing %s\n", L4G_VERSION)
 	lr := newLogRecord(CRITICAL, "source", "message")

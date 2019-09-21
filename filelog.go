@@ -12,6 +12,16 @@ import (
 	"time"
 )
 
+type RotType int32
+
+const (
+	ROT_TYPE_DAY  = RotType(1)
+	ROT_TYPE_HOUR = RotType(2)
+	// rotate file suffix
+	DEF_ROT_TIME_SUFFIX_DAY  = "2006-01-02"
+	DEF_ROT_TIME_SUFFIX_HOUR = "2006-01-02_15"
+)
+
 // This log writer sends output to a file
 type FileLogWriter struct {
 	LogCloser
@@ -32,27 +42,27 @@ type FileLogWriter struct {
 	header, trailer string
 
 	// Rotate at linecount
-	maxlines          int
-	maxlines_curlines int
+	maxlines int
+	curlines int
 
 	// Rotate at size
-	maxsize         int64
-	maxsize_cursize int64
+	maxsize int64
+	cursize int64
+
+	// Rotate
+	rotate    bool
+	rotSuffix string
 
 	// Rotate daily
-	daily          bool
-	daily_opendate int
+	daily         bool
+	dailyOpenDate int
 
 	// Rotate hourly
-	hourly           bool
-	hour_file_suffix string
-	hour_interval    int
-	// after hourinterval hour unix-time sec
-	hour_next_rotatesec int64
-	hour_cur_filename   string
+	hourly      bool
+	rotInterval int
+	rotNextTime int64
 
 	// Keep old logfiles (.001, .002, etc)
-	rotate    bool
 	maxbackup int
 
 	caller bool
@@ -78,6 +88,7 @@ func (w *FileLogWriter) LogWrite(rec *LogRecord) {
 
 func (w *FileLogWriter) Close() {
 	w.Once.Do(func() {
+		// cost cpu too busy this way, 20190915
 		// Wait write coroutine
 		// for len(w.rec) > 0 {
 		// 	time.Sleep(100 * time.Millisecond)
@@ -99,6 +110,27 @@ func (w *FileLogWriter) Close() {
 
 // This func shows whether output filename/function/lineno info in log
 func (w *FileLogWriter) GetCallerFlag() bool { return w.caller }
+
+func (w *FileLogWriter) checkRotate() bool {
+	if !w.rotate {
+		return false
+	}
+
+	if (w.maxlines > 0 && w.curlines >= w.maxlines) || (w.maxsize > 0 && w.cursize >= w.maxsize) {
+		return true
+	}
+
+	now := time.Now()
+	if w.hourly && now.Unix() >= w.rotNextTime {
+		return true
+	}
+
+	if w.daily && now.Day() != w.dailyOpenDate {
+		return true
+	}
+
+	return false
+}
 
 // NewFileLogWriter creates a new LogWriter which writes to the given file and
 // has rotation enabled if rotate is true and set a memory alignment buffer if
@@ -161,11 +193,7 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				}
 
 				// 满足相关设定，切割文件了
-				now := time.Now()
-				if (w.maxlines > 0 && w.maxlines_curlines >= w.maxlines) ||
-					(w.maxsize > 0 && w.maxsize_cursize >= w.maxsize) ||
-					(w.daily && now.Day() != w.daily_opendate) ||
-					(w.hourly && now.Unix() >= w.hour_next_rotatesec) {
+				if w.checkRotate() {
 					if err := w.intRotate(); err != nil {
 						fmt.Fprintf(os.Stderr, "FileLogWriter(%q): %s\n", w.filename, err)
 						return
@@ -202,8 +230,8 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				}
 
 				// Update the counts
-				w.maxlines_curlines++
-				w.maxsize_cursize += int64(n)
+				w.curlines++
+				w.cursize += int64(n)
 			}
 		}
 	}()
@@ -228,14 +256,30 @@ func (w *FileLogWriter) intRotate() error {
 
 	// If we are keeping log files, move it to the next available number
 	// 为旧文件找到一个合适的名称
+	now := time.Now()
 	if w.rotate {
 		_, err := os.Lstat(w.filename)
 		if err == nil { // file exists
 			// Find the next available number
 			num := 1
 			fname := ""
-			if w.daily && time.Now().Day() != w.daily_opendate {
-				yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+			if w.hourly && now.Unix() >= w.rotNextTime {
+				year, month, day := now.Date()
+				hour, _, _ := now.Clock()
+				preTime := time.Date(year, month, day, hour-w.rotInterval, 0, 0, 0, time.Local)
+
+				suffix := fmt.Sprintf("%s", preTime.Format(w.rotSuffix))
+				for ; err == nil && num <= w.maxbackup; num++ {
+					fname = w.filename + fmt.Sprintf(".%s.%03d", suffix, num)
+					_, err = os.Lstat(fname)
+				}
+				// return error if the last file checked still existed
+				if err == nil {
+					return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
+				}
+			} else if w.daily && now.Day() != w.dailyOpenDate {
+				// daily 复用旧逻辑
+				yesterday := now.AddDate(0, 0, -1).Format(w.rotSuffix)
 
 				for ; err == nil && num <= w.maxbackup; num++ {
 					fname = w.filename + fmt.Sprintf(".%s.%03d", yesterday, num)
@@ -252,6 +296,7 @@ func (w *FileLogWriter) intRotate() error {
 					nfname := w.filename + fmt.Sprintf(".%d", num+1)
 					_, err = os.Lstat(fname)
 					if err == nil {
+						// 通过文件替换的方式删除序号最大的旧文件
 						os.Rename(fname, nfname)
 					}
 				}
@@ -267,6 +312,7 @@ func (w *FileLogWriter) intRotate() error {
 			// Rename the file to its newfound home
 			for i := 0; i < 150; i++ {
 				// For loop to handle failure of rename when file is accessed by agent
+				// 通过文件替换的方式删除旧文件
 				err = os.Rename(w.filename, fname)
 				if err != nil {
 					fmt.Println("Rename clash - Retrying")
@@ -289,17 +335,23 @@ func (w *FileLogWriter) intRotate() error {
 	w.file = fd
 
 	// Set the daily open date to the current date
-	now := time.Now()
-	w.daily_opendate = now.Day()
+	if w.hourly {
+		year, month, day := now.Date()
+		hour, _, _ := now.Clock()
+		w.rotNextTime = time.Date(year, month, day, hour+w.rotInterval, 0, 0, 0, time.Local).Unix()
+	}
+	if w.daily {
+		w.dailyOpenDate = now.Day()
+	}
 
-	w.maxsize_cursize = 0
+	w.cursize = 0
 	// 防止程序重启创建一个新的日志文件
 	if fstat, err := fd.Stat(); nil == err && nil != fstat {
-		w.maxsize_cursize = fstat.Size()
+		w.cursize = fstat.Size()
 		now = fstat.ModTime()
 	}
 	// initialize rotation values
-	w.maxlines_curlines = 0
+	w.curlines = 0
 
 	fmt.Fprint(w.file, FormatLogRecord(w.header, &LogRecord{Created: now}))
 
@@ -354,15 +406,19 @@ func (w *FileLogWriter) intOpen(bufSize int) error {
 	fmt.Fprint(w.file, FormatLogRecord(w.header, &LogRecord{Created: now}))
 
 	// Set the daily open date to the current date
-	w.daily_opendate = now.Day()
+	w.dailyOpenDate = now.Day()
+
+	year, month, day := now.Date()
+	hour, _, _ := now.Clock()
+	w.rotNextTime = time.Date(year, month, day, hour+w.rotInterval, 0, 0, 0, time.Local).Unix()
 
 	// initialize rotation values
-	w.maxlines_curlines = 0
-	w.maxsize_cursize = 0
+	w.curlines = 0
+	w.cursize = 0
 
 	fstat, err := os.Lstat(w.filename)
 	if err == nil {
-		w.maxsize_cursize = fstat.Size()
+		w.cursize = fstat.Size()
 	}
 
 	return nil
@@ -387,7 +443,7 @@ func (w *FileLogWriter) SetFormat(format string) *FileLogWriter {
 // you can use %D and %T in your header/footer for date and time).
 func (w *FileLogWriter) SetHeadFoot(head, foot string) *FileLogWriter {
 	w.header, w.trailer = head, foot
-	if w.maxlines_curlines == 0 {
+	if w.curlines == 0 {
 		fmt.Fprint(w.file, FormatLogRecord(w.header, &LogRecord{Created: time.Now()}))
 	}
 	return w
@@ -415,6 +471,56 @@ func (w *FileLogWriter) SetRotateSize(maxsize int64) *FileLogWriter {
 // written.
 func (w *FileLogWriter) SetRotateDaily(daily bool) *FileLogWriter {
 	w.daily = daily
+
+	if w.daily {
+		return w.SetRotateParams(ROT_TYPE_DAY, "", 0)
+	}
+
+	return w
+}
+
+// Set rotate daily (chainable). Must be called before the first log message is
+// written.
+func (w *FileLogWriter) SetRotateHourly(rotHours int) *FileLogWriter {
+	w.hourly = true
+
+	return w.SetRotateParams(ROT_TYPE_HOUR, "", rotHours)
+}
+
+// Set rotate params
+func (w *FileLogWriter) SetRotateParams(rtype RotType, suffix string, interval int) *FileLogWriter {
+	if !w.rotate {
+		return w
+	}
+
+	w.rotSuffix = suffix
+	w.rotInterval = interval
+
+	if w.rotate {
+		if len(w.rotSuffix) == 0 {
+			if rtype == ROT_TYPE_DAY {
+				w.rotSuffix = DEF_ROT_TIME_SUFFIX_DAY
+			} else if rtype == ROT_TYPE_HOUR {
+				w.rotSuffix = DEF_ROT_TIME_SUFFIX_HOUR
+			}
+		}
+		if w.rotInterval <= 0 {
+			w.rotInterval = 1
+			if rtype == ROT_TYPE_DAY {
+				w.rotInterval *= 24 * int(time.Hour)
+			} else if rtype == ROT_TYPE_HOUR {
+				w.rotInterval *= int(time.Hour)
+			}
+		}
+	}
+
+	if rtype == ROT_TYPE_DAY {
+		// daily 复用旧逻辑
+		w.daily = true
+	} else if rtype == ROT_TYPE_HOUR {
+		w.hourly = true
+	}
+
 	return w
 }
 
@@ -433,16 +539,6 @@ func (w *FileLogWriter) SetRotateMaxBackup(maxbackup int) *FileLogWriter {
 // new log is opened.
 func (w *FileLogWriter) SetRotate(rotate bool) *FileLogWriter {
 	w.rotate = rotate
-	return w
-}
-
-// Set rotate hourly (chainable). Must be called before w.Start().
-func (w *FileLogWriter) SetRotateHourly(hourly bool, hour_file_suffix string, hour_interval int) *FileLogWriter {
-	w.hourly = hourly
-	w.hour_file_suffix = hour_file_suffix
-	w.hour_interval = hour_interval
-	w.hour_next_rotatesec = time.Now().Unix() + int64(hour_interval)*60*60
-
 	return w
 }
 
