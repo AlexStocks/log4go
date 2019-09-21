@@ -43,6 +43,14 @@ type FileLogWriter struct {
 	daily          bool
 	daily_opendate int
 
+	// Rotate hourly
+	hourly           bool
+	hour_file_suffix string
+	hour_interval    int
+	// after hourinterval hour unix-time sec
+	hour_next_rotatesec int64
+	hour_cur_filename   string
+
 	// Keep old logfiles (.001, .002, etc)
 	rotate    bool
 	maxbackup int
@@ -156,7 +164,8 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				now := time.Now()
 				if (w.maxlines > 0 && w.maxlines_curlines >= w.maxlines) ||
 					(w.maxsize > 0 && w.maxsize_cursize >= w.maxsize) ||
-					(w.daily && now.Day() != w.daily_opendate) {
+					(w.daily && now.Day() != w.daily_opendate) ||
+					(w.hourly && now.Unix() >= w.hour_next_rotatesec) {
 					if err := w.intRotate(); err != nil {
 						fmt.Fprintf(os.Stderr, "FileLogWriter(%q): %s\n", w.filename, err)
 						return
@@ -424,6 +433,16 @@ func (w *FileLogWriter) SetRotateMaxBackup(maxbackup int) *FileLogWriter {
 // new log is opened.
 func (w *FileLogWriter) SetRotate(rotate bool) *FileLogWriter {
 	w.rotate = rotate
+	return w
+}
+
+// Set rotate hourly (chainable). Must be called before w.Start().
+func (w *FileLogWriter) SetRotateHourly(hourly bool, hour_file_suffix string, hour_interval int) *FileLogWriter {
+	w.hourly = hourly
+	w.hour_file_suffix = hour_file_suffix
+	w.hour_interval = hour_interval
+	w.hour_next_rotatesec = time.Now().Unix() + int64(hour_interval)*60*60
+
 	return w
 }
 

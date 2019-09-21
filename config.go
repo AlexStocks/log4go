@@ -242,6 +242,10 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 	rotate := false
 	bufSize := 0
 	callerFlag := true
+	// rotate hourly
+	hourly := false
+	hourfilesuffix := "20060102_1516"
+	hourinterval := 1
 
 	// Parse properties
 	for _, prop := range props {
@@ -267,6 +271,14 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 		case "caller":
 			// 为了兼容以往设置，默认 caller 为 true，只有明确设置其为 "false" 时，才设置其为 false
 			callerFlag = !(strings.Trim(prop.Value, " \r\n") == "false")
+		//新增按小时滚动
+		case "hourly":
+			hourly = strings.Trim(prop.Value, " \r\n") != "false"
+		case "hourfilesuffix":
+			hourfilesuffix = strings.Trim(prop.Value, " \r\n")
+		case "hourinterval":
+			hourinterval, _ = strconv.Atoi(strings.Trim(prop.Value, " \r\n"))
+
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Warning: Unknown property \"%s\" for file filter in %s\n",
@@ -285,6 +297,11 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 	// If it's disabled, we're just checking syntax
 	if !enabled {
 		return nil, true
+	}
+
+	if daily && hourly {
+		panic("u should not enable hourly and daily at the same time")
+		return nil, false
 	}
 
 	flw := NewFileLogWriter(file, rotate, bufSize)

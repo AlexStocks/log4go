@@ -194,7 +194,7 @@ func TestConsoleLogWriter(t *testing.T) {
 	// console := make(ConsoleLogWriter)
 	console := &ConsoleLogWriter{
 		format: "[%T %D] [%L] %M",
-		w:      make(chan *LogRecord, LogBufferLength),
+		w:      make(chan LogRecord, LogBufferLength),
 	}
 
 	r, w := io.Pipe()
