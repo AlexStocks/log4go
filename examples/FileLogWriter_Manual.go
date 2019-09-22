@@ -41,6 +41,7 @@ func testLog(json bool) {
 	flw.SetRotateSize(0)
 	flw.SetRotateLines(0)
 	flw.SetRotateDaily(false)
+	flw.SetRotateHourly(0)
 	log.AddFilter("file", l4g.FINE, flw)
 	log.SetAsDefaultLogger()
 

@@ -151,6 +151,8 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 		json:      false,
 		format:    "[%D %T] [%L] (%S) %M",
 		rotate:    rotate,
+		daily:     false,
+		hourly:    false,
 		maxbackup: 999,
 	}
 
@@ -158,7 +160,7 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 	w.LogCloserInit()
 
 	// open the file for the first time
-	if err := w.intOpen(bufSize); err != nil {
+	if err := w.initOpen(bufSize); err != nil {
 		fmt.Fprintf(os.Stderr, "FileLogWriter(filename:%q, bufSize:%d): %s\n", w.filename, bufSize, err)
 		return nil
 	}
@@ -372,7 +374,7 @@ func createDir(dir string) error {
 }
 
 // If this is called in a threaded context, it MUST be synchronized
-func (w *FileLogWriter) intOpen(bufSize int) error {
+func (w *FileLogWriter) initOpen(bufSize int) error {
 	// Already opened
 	if w.file != nil {
 		return nil
@@ -412,7 +414,8 @@ func (w *FileLogWriter) intOpen(bufSize int) error {
 
 	year, month, day := now.Date()
 	hour, _, _ := now.Clock()
-	w.rotNextTime = time.Date(year, month, day, hour+w.rotInterval, 0, 0, 0, time.Local).Unix()
+	// 先设置默认为1小时
+	w.rotNextTime = time.Date(year, month, day, hour+1, 0, 0, 0, time.Local).Unix()
 
 	// initialize rotation values
 	w.curlines = 0
@@ -484,9 +487,13 @@ func (w *FileLogWriter) SetRotateDaily(daily bool) *FileLogWriter {
 // Set rotate daily (chainable). Must be called before the first log message is
 // written.
 func (w *FileLogWriter) SetRotateHourly(rotHours int) *FileLogWriter {
-	w.hourly = true
+	w.hourly = false
 
-	return w.SetRotateParams(ROT_TYPE_HOUR, "", rotHours)
+	if 0 < rotHours {
+		return w.SetRotateParams(ROT_TYPE_HOUR, "", rotHours)
+	}
+
+	return w
 }
 
 // Set rotate params
@@ -495,29 +502,43 @@ func (w *FileLogWriter) SetRotateParams(rtype RotType, suffix string, interval i
 		return w
 	}
 
+	w.daily = false
+	w.hourly = false
+
 	w.rotSuffix = suffix
 	w.rotInterval = interval
 
-	if w.rotate {
+	now := time.Now()
+	switch rtype {
+	case ROT_TYPE_DAY:
 		if len(w.rotSuffix) == 0 {
-			if rtype == ROT_TYPE_DAY {
-				w.rotSuffix = DEF_ROT_TIME_SUFFIX_DAY
-			} else if rtype == ROT_TYPE_HOUR {
-				w.rotSuffix = DEF_ROT_TIME_SUFFIX_HOUR
-			}
+			w.rotSuffix = DEF_ROT_TIME_SUFFIX_DAY
+		}
+
+		w.dailyOpenDate = now.Day()
+
+		// 开关参数设置一定要放在终止时间 dailyOpenDate 之后
+		w.daily = true
+		w.hourly = false
+
+	case ROT_TYPE_HOUR:
+		if len(w.rotSuffix) == 0 {
+			w.rotSuffix = DEF_ROT_TIME_SUFFIX_HOUR
 		}
 		if w.rotInterval <= 0 {
 			w.rotInterval = 1
-			if rtype == ROT_TYPE_HOUR {
-				w.rotInterval *= int(time.Hour)
-			}
 		}
-	}
 
-	if rtype == ROT_TYPE_DAY {
-		w.daily = true
-	} else if rtype == ROT_TYPE_HOUR {
+		year, month, day := now.Date()
+		hour, _, _ := now.Clock()
+		w.rotNextTime = time.Date(year, month, day, hour+w.rotInterval, 0, 0, 0, time.Local).Unix()
+
+		// 开关参数设置一定要放在终止时间 dailyOpenDate 之后
+		// 因为为了兼容以往 log4go 函数 NewFileLogWriter，file log writer 的参数设置函数 SetXX 是在 NewFileLogWriter
+		// 之后调用的，此处先设置参数再打开开关，是为了防止极端 case：本函数如果先把 hourly or daily 开关打开，而 rotNextTime
+		// or dailyOpenDate 还未设置，则很容易造成一个日志还没写就对日志文件进行了切割
 		w.hourly = true
+		w.daily = false
 	}
 
 	return w
