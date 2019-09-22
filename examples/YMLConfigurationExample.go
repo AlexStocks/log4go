@@ -13,7 +13,7 @@ func main() {
 	log := l4g.NewLogger()
 	// Load the configuration (isn't this easy?)
 
-	log.LoadConfiguration("/Users/alex/example.yml")
+	log.LoadConfiguration("example.yml")
 	defer l4g.Close() // 20190422添加此行代码，关闭默认日志输出
 	defer log.Close() // 20160921添加此行代码，否则日志无法输出
 	time.Sleep(2e9)   // wait send out udp package
