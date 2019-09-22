@@ -1,4 +1,4 @@
-# a log4go fork maintained by AlexStocks.
+# a log4go fork maintained by AlexStocks, maybe the most powerful on github
 
 Please see http://log4go.googlecode.com/ for more log4go usages. My personal
 package (github.com/AlexStocks/goext/log) wrappered log4go functions further
@@ -74,7 +74,6 @@ l4g.Critical()
 	ERROR
 	CRITICAL
 ```
-
 
 Feature list:
 
