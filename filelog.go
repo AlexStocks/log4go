@@ -55,12 +55,11 @@ type FileLogWriter struct {
 	cursize int64
 
 	// Rotate daily
-	daily         bool
-	dailyOpenDate int
-
+	daily bool
 	// Rotate hourly
 	hourly      bool
 	rotInterval int
+
 	rotNextTime int64
 
 	// Keep old logfiles (.001, .002, etc)
@@ -127,7 +126,7 @@ func (w *FileLogWriter) checkRotate() bool {
 		return true
 	}
 
-	if w.daily && now.Day() != w.dailyOpenDate {
+	if w.daily && now.Unix() >= w.rotNextTime {
 		return true
 	}
 
@@ -282,7 +281,7 @@ func (w *FileLogWriter) intRotate() error {
 				if err == nil {
 					return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
 				}
-			} else if w.daily && now.Day() != w.dailyOpenDate {
+			} else if w.daily && now.Unix() >= w.rotNextTime {
 				// daily 复用旧逻辑
 				yesterday := now.AddDate(0, 0, -1).Format(w.rotSuffix)
 
@@ -347,7 +346,9 @@ func (w *FileLogWriter) intRotate() error {
 		w.rotNextTime = time.Date(year, month, day, hour+w.rotInterval, 0, 0, 0, time.Local).Unix()
 	}
 	if w.daily {
-		w.dailyOpenDate = now.Day()
+		year, month, day := now.Date()
+		hour, _, _ := now.Clock()
+		w.rotNextTime = time.Date(year, month, day+1, hour, 0, 0, 0, time.Local).Unix()
 	}
 
 	w.cursize = 0
@@ -411,13 +412,10 @@ func (w *FileLogWriter) initOpen(bufSize int) error {
 	now := time.Now()
 	fmt.Fprint(w.file, FormatLogRecord(w.header, &LogRecord{Created: now}))
 
-	// Set the daily open date to the current date
-	w.dailyOpenDate = now.Day()
-
+	// Set the daily/hourly open date to the current date
 	year, month, day := now.Date()
 	hour, _, _ := now.Clock()
-	// 先设置默认为1小时
-	w.rotNextTime = time.Date(year, month, day, hour+1, 0, 0, 0, time.Local).Unix()
+	w.rotNextTime = time.Date(year, month, day+1, hour, 0, 0, 0, time.Local).Unix()
 
 	// initialize rotation values
 	w.curlines = 0
@@ -511,13 +509,16 @@ func (w *FileLogWriter) SetRotateParams(rtype RotType, suffix string, interval i
 	w.rotInterval = interval
 
 	now := time.Now()
+	year, month, day := now.Date()
+	hour, _, _ := now.Clock()
+
 	switch rtype {
 	case ROT_TYPE_DAY:
 		if len(w.rotSuffix) == 0 {
 			w.rotSuffix = DEF_ROT_TIME_SUFFIX_DAY
 		}
 
-		w.dailyOpenDate = now.Day()
+		w.rotNextTime = time.Date(year, month, day+1, hour, 0, 0, 0, time.Local).Unix()
 
 		// 开关参数设置一定要放在终止时间 dailyOpenDate 之后
 		w.daily = true
@@ -531,8 +532,6 @@ func (w *FileLogWriter) SetRotateParams(rtype RotType, suffix string, interval i
 			w.rotInterval = 1
 		}
 
-		year, month, day := now.Date()
-		hour, _, _ := now.Clock()
 		w.rotNextTime = time.Date(year, month, day, hour+w.rotInterval, 0, 0, 0, time.Local).Unix()
 
 		// 开关参数设置一定要放在终止时间 dailyOpenDate 之后
