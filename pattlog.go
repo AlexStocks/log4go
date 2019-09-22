@@ -135,7 +135,7 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 			case 'P':
 				out.WriteString(logProcessID)
 			case 'S':
-				if rec.Source != "" {
+				if len(rec.Source) != 0 {
 					out.WriteString(rec.Source)
 				} else {
 					out.UnreadByte()

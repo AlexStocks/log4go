@@ -215,7 +215,8 @@ func NewDefaultLogger(lvl Level) Logger {
 	// logger.FilterMap["stdout"] = &Filter{lvl, NewConsoleLogWriter(false)}
 	writer := NewConsoleLogWriter(false)
 	filter := &Filter{Level: lvl, LogWriter: writer}
-	logger.AddFilter("stdout", DEBUG, filter)
+	//logger.AddFilter("stdout", DEBUG, filter)
+	logger.AddFilter("stdout", lvl, filter)
 
 	return logger
 }

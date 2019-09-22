@@ -265,7 +265,7 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 			rotate = strings.Trim(prop.Value, " \r\n") != "false"
 		case "daily":
 			daily = strings.Trim(prop.Value, " \r\n") != "false"
-		case "rothours":
+		case "hourly":
 			rothours, _ = strconv.Atoi(strings.Trim(prop.Value, " \r\n"))
 		case "caller":
 			// 为了兼容以往设置，默认 caller 为 true，只有明确设置其为 "false" 时，才设置其为 false

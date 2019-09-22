@@ -116,7 +116,8 @@ func (w *FileLogWriter) checkRotate() bool {
 		return false
 	}
 
-	if (w.maxlines > 0 && w.curlines >= w.maxlines) || (w.maxsize > 0 && w.cursize >= w.maxsize) {
+	if (w.maxlines > 0 && w.curlines >= w.maxlines) ||
+		(w.maxsize > 0 && w.cursize >= w.maxsize) {
 		return true
 	}
 
@@ -233,6 +234,7 @@ func NewFileLogWriter(fname string, rotate bool, bufSize int) *FileLogWriter {
 				w.curlines++
 				w.cursize += int64(n)
 			}
+
 		}
 	}()
 
@@ -506,16 +508,13 @@ func (w *FileLogWriter) SetRotateParams(rtype RotType, suffix string, interval i
 		}
 		if w.rotInterval <= 0 {
 			w.rotInterval = 1
-			if rtype == ROT_TYPE_DAY {
-				w.rotInterval *= 24 * int(time.Hour)
-			} else if rtype == ROT_TYPE_HOUR {
+			if rtype == ROT_TYPE_HOUR {
 				w.rotInterval *= int(time.Hour)
 			}
 		}
 	}
 
 	if rtype == ROT_TYPE_DAY {
-		// daily 复用旧逻辑
 		w.daily = true
 	} else if rtype == ROT_TYPE_HOUR {
 		w.hourly = true
