@@ -12,6 +12,7 @@
 - 2018/06/01
     > bug fix
     * output escape query string not as an string format [ as example in  TestEscapeQueryURLString ]
+    * json config file
 
 - 2018/03/26
     > feature
