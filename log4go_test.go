@@ -424,8 +424,10 @@ func TestCountMallocs(t *testing.T) {
 
 func TestXMLConfig(t *testing.T) {
 	const (
-		configfile = "example.xml"
+		configfile = "/tmp/__20190923_example.xml"
 	)
+
+	defer os.Remove(configfile)
 
 	fd, err := os.Create(configfile)
 	if err != nil {
