@@ -41,17 +41,18 @@ type FileLogWriter struct {
 	// File header/trailer
 	header, trailer string
 
+	// Rotate
+	rotate    bool
+	rotSuffix string
+
 	// Rotate at linecount
+	// 这两个条件与 hourly/daily 可同时有效，然hourly 和 daily 不能同时有效
 	maxlines int
 	curlines int
 
 	// Rotate at size
 	maxsize int64
 	cursize int64
-
-	// Rotate
-	rotate    bool
-	rotSuffix string
 
 	// Rotate daily
 	daily         bool
@@ -294,6 +295,7 @@ func (w *FileLogWriter) intRotate() error {
 					return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.filename)
 				}
 			} else {
+				// maxlines or maxsize
 				num = w.maxbackup - 1
 				for ; num >= 1; num-- {
 					fname = w.filename + fmt.Sprintf(".%d", num)

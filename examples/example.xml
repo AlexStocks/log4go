@@ -21,7 +21,7 @@
     <property name="daily">false</property> <!-- Automatically rotates when a log message is written after midnight -->
     <property name="hourly">1</property> <!-- Automatically rotates every few hour according to the value of hourly. If the value is greater than 0, the daily will be set false. -->
   </filter>
-  <filter enabled="false">
+  <filter enabled="true">
     <tag>info_file</tag>
     <type>file</type>
     <level>INFO</level>
