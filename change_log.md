@@ -9,6 +9,7 @@
     > feature
     * rotate file hourly
     * json config file
+    * reuse log buf repeatably
 
 - 2018/06/01
     > bug fix
