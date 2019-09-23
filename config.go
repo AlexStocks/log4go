@@ -11,21 +11,21 @@ import (
 	"strings"
 )
 
-type xmlProperty struct {
-	Name  string `xml:"name,attr"`
-	Value string `xml:",chardata"`
+type confProperty struct {
+	Name  string `xml:"name,attr" json:"name,omitempty"`
+	Value string `xml:",chardata" json:"value,omitempty"`
 }
 
 type kvFilter struct {
-	Enabled  string        `xml:"enabled,attr"`
-	Tag      string        `xml:"tag"`
-	Level    string        `xml:"level"`
-	Type     string        `xml:"type"`
-	Property []xmlProperty `xml:"property"`
+	Enabled  string         `xml:"enabled,attr" json:"enabled,omitempty"`
+	Tag      string         `xml:"tag" json:"tag,omitempty"`
+	Level    string         `xml:"level" json:"level,omitempty"`
+	Type     string         `xml:"type" json:"type,omitempty"`
+	Property []confProperty `xml:"property" json:"properties,omitempty"`
 }
 
 type loggerConfig struct {
-	Filter []kvFilter `xml:"filter"`
+	Filter []kvFilter `xml:"filter" json:"filters,omitempty"`
 }
 
 // Load XML configuration; see examples/example.xml for documentation
@@ -59,45 +59,45 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 		os.Exit(1)
 	}
 
-	for _, xmlfilt := range xc.Filter {
+	for _, filter := range xc.Filter {
 		var filt LogWriter
 		var lvl Level
 		bad, good, enabled := false, true, false
 
 		// Check required children
-		if len(xmlfilt.Enabled) == 0 {
+		if len(filter.Enabled) == 0 {
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Required attribute %s for filter missing in %s\n",
 				"enabled", filename)
 			bad = true
 		} else {
-			enabled = xmlfilt.Enabled != "false"
+			enabled = filter.Enabled != "false"
 		}
-		if len(xmlfilt.Tag) == 0 {
+		if len(filter.Tag) == 0 {
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Required child <%s> for filter missing in %s\n",
 				"tag", filename)
 			bad = true
 		}
-		if len(xmlfilt.Type) == 0 {
+		if len(filter.Type) == 0 {
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Required child <%s> for filter missing in %s\n",
 				"type", filename)
 			bad = true
 		} else {
-			if xmlfilt.Type == "record" {
+			if filter.Type == "record" {
 				continue
 			}
 		}
-		if len(xmlfilt.Level) == 0 {
+		if len(filter.Level) == 0 {
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Required child <%s> for filter missing in %s\n",
 				"level", filename)
 			bad = true
 		}
 
-		xmlFiltLevel := strings.ToLower(xmlfilt.Level)
-		switch xmlFiltLevel {
+		filterLevel := strings.ToLower(filter.Level)
+		switch filterLevel {
 		case "finest":
 			lvl = FINEST
 		case "fine":
@@ -117,7 +117,7 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Required child <%s> for filter has unknown value in %s: %s\n",
-				"level", filename, xmlfilt.Level)
+				"level", filename, filter.Level)
 			bad = true
 		}
 
@@ -129,19 +129,19 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 			log.minLevel = lvl
 		}
 
-		switch xmlfilt.Type {
+		switch filter.Type {
 		case "console":
-			filt, good = xmlToConsoleLogWriter(filename, xmlfilt.Property, enabled)
+			filt, good = confToConsoleLogWriter(filename, filter.Property, enabled)
 		case "file":
-			filt, good = xmlToFileLogWriter(filename, xmlfilt.Property, enabled)
+			filt, good = confToFileLogWriter(filename, filter.Property, enabled)
 		case "xml":
-			filt, good = xmlToXMLLogWriter(filename, xmlfilt.Property, enabled)
+			filt, good = confToXMLLogWriter(filename, filter.Property, enabled)
 		case "socket":
-			filt, good = xmlToSocketLogWriter(filename, xmlfilt.Property, enabled)
+			filt, good = confToSocketLogWriter(filename, filter.Property, enabled)
 		default:
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Could not load XML configuration in %s: unknown filter type \"%s\"\n",
-				filename, xmlfilt.Type)
+				filename, filter.Type)
 			os.Exit(1)
 		}
 
@@ -155,14 +155,14 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 			continue
 		}
 
-		//log.FilterMap[xmlfilt.Tag] = &Filter{lvl, filt}
-		log.AddFilter(xmlfilt.Tag, lvl, filt)
+		//log.FilterMap[filter.Tag] = &Filter{lvl, filt}
+		log.AddFilter(filter.Tag, lvl, filt)
 	}
 
 	return *log
 }
 
-func xmlToConsoleLogWriter(filename string, props []xmlProperty, enabled bool) (*ConsoleLogWriter, bool) {
+func confToConsoleLogWriter(filename string, props []confProperty, enabled bool) (*ConsoleLogWriter, bool) {
 	jsonFormat := false
 	format := "[%D %T] [%L] (%S) %M"
 	callerFlag := true
@@ -231,7 +231,7 @@ func strToI64(str string) int64 {
 	return n
 }
 
-func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*FileLogWriter, bool) {
+func confToFileLogWriter(filename string, props []confProperty, enabled bool) (*FileLogWriter, bool) {
 	file := ""
 	jsonformat := false
 	format := "[%D %T] [%L] (%S) %M"
@@ -303,7 +303,7 @@ func xmlToFileLogWriter(filename string, props []xmlProperty, enabled bool) (*Fi
 	return flw, true
 }
 
-func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*FileLogWriter, bool) {
+func confToXMLLogWriter(filename string, props []confProperty, enabled bool) (*FileLogWriter, bool) {
 	file := ""
 	maxrecords := 0
 	maxsize := int64(0)
@@ -338,7 +338,7 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 			callerFlag = !(strings.Trim(prop.Value, " \r\n") == "false")
 		default:
 			fmt.Fprintf(os.Stderr,
-				"LoadConfiguration: Warning: Unknown property \"%s\" for xml filter in %s\n",
+				"LoadConfiguration: Warning: Unknown property \"%s\" for filter in %s\n",
 				prop.Name, filename)
 		}
 	}
@@ -346,7 +346,7 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 	// Check properties
 	if len(file) == 0 {
 		fmt.Fprintf(os.Stderr,
-			"LoadConfiguration: Error: Required property \"%s\" for xml filter missing in %s\n",
+			"LoadConfiguration: Error: Required property \"%s\" for filter missing in %s\n",
 			"filename", filename)
 		return nil, false
 	}
@@ -367,7 +367,7 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 	return xlw, true
 }
 
-func xmlToSocketLogWriter(filename string, props []xmlProperty, enabled bool) (*SocketLogWriter, bool) {
+func confToSocketLogWriter(filename string, props []confProperty, enabled bool) (*SocketLogWriter, bool) {
 	endpoint := ""
 	protocol := "udp"
 	callerFlag := true
