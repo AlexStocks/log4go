@@ -5,6 +5,10 @@
 ## dev list ##
 ---
 
+- 2019/09/23
+    > feature
+    * rotate file hourly
+
 - 2018/06/01
     > bug fix
     * output escape query string not as an string format [ as example in  TestEscapeQueryURLString ]
@@ -23,7 +27,7 @@
     > feature
     * output colorful log to console
     * add windows new line support
-    
+
 - 2018/03/12
     > bug fix
     * delete log filter in log’s filter map in log::Close

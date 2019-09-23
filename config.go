@@ -16,7 +16,7 @@ type xmlProperty struct {
 	Value string `xml:",chardata"`
 }
 
-type xmlFilter struct {
+type kvFilter struct {
 	Enabled  string        `xml:"enabled,attr"`
 	Tag      string        `xml:"tag"`
 	Level    string        `xml:"level"`
@@ -24,8 +24,8 @@ type xmlFilter struct {
 	Property []xmlProperty `xml:"property"`
 }
 
-type xmlLoggerConfig struct {
-	Filter []xmlFilter `xml:"filter"`
+type loggerConfig struct {
+	Filter []kvFilter `xml:"filter"`
 }
 
 // Load XML configuration; see examples/example.xml for documentation
@@ -51,7 +51,7 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 		os.Exit(1)
 	}
 
-	xc := new(xmlLoggerConfig)
+	xc := new(loggerConfig)
 	if err := xml.Unmarshal(contents, xc); err != nil {
 		fmt.Fprintf(os.Stderr,
 			"LoadConfiguration: Error: Could not parse XML configuration in %q: %s\n",
@@ -309,6 +309,7 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 	maxsize := int64(0)
 	maxbackup := 0
 	daily := false
+	rothours := 0
 	rotate := false
 	bufSize := 0
 	callerFlag := true
@@ -328,6 +329,8 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 			maxbackup = strToInt(strings.Trim(prop.Value, " \r\n"))
 		case "daily":
 			daily = strings.Trim(prop.Value, " \r\n") != "false"
+		case "hourly":
+			rothours, _ = strconv.Atoi(strings.Trim(prop.Value, " \r\n"))
 		case "rotate":
 			rotate = strings.Trim(prop.Value, " \r\n") != "false"
 		case "caller":
@@ -358,6 +361,7 @@ func xmlToXMLLogWriter(filename string, props []xmlProperty, enabled bool) (*Fil
 	xlw.SetRotateSize(maxsize)
 	xlw.SetRotateMaxBackup(maxbackup)
 	xlw.SetRotateDaily(daily)
+	xlw.SetRotateHourly(rothours)
 	xlw.SetCallerFlag(callerFlag)
 
 	return xlw, true
