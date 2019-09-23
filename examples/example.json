@@ -1,0 +1,198 @@
+{
+  "logging": {
+    "filters": [
+      {
+        "enabled": "true",
+        "tag": "stdout",
+        "type": "console",
+        "level": "DEBUG",
+        "properties": [
+          {
+            "name": "json",
+            "value": "false"
+          },
+          {
+            "name": "format",
+            "value": "[%D %T] [%L] (%S) (%P) %M"
+          }
+        ]
+      },
+      {
+        "enabled": "true",
+        "tag": "debug_file",
+        "type": "file",
+        "level": "DEBUG",
+        "properties": [
+          {
+            "name": "filename",
+            "value": "logs/examples_debug.log"
+          },
+          {
+            "name": "json",
+            "value": "false"
+          },
+          {
+            "name": "format",
+            "value": "[%D %T] [%L] [%S] [%P] %M"
+          },
+          {
+            "name": "rotate",
+            "value": "true"
+          },
+          {
+            "name": "maxsize",
+            "value": "0M"
+          },
+          {
+            "name": "maxlines",
+            "value": "0K"
+          },
+          {
+            "name": "maxbackup",
+            "value": "16"
+          },
+          {
+            "name": "daily",
+            "value": "false"
+          },
+          {
+            "name": "hourly",
+            "value": "1"
+          }
+        ]
+      },
+      {
+        "enabled": "true",
+        "tag": "info_file",
+        "type": "file",
+        "level": "INFO",
+        "properties": [
+          {
+            "name": "filename",
+            "value": "logs/examples_info.log"
+          },
+          {
+            "name": "json",
+            "value": "false"
+          },
+          {
+            "name": "format",
+            "value": "[%D %T] [%L] [%S] %M"
+          },
+          {
+            "name": "rotate",
+            "value": "true"
+          },
+          {
+            "name": "maxsize",
+            "value": "0M"
+          },
+          {
+            "name": "maxlines",
+            "value": "0K"
+          },
+          {
+            "name": "maxbackup",
+            "value": "16"
+          },
+          {
+            "name": "daily",
+            "value": "true"
+          },
+          {
+            "name": "hourly",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "enabled": "false",
+        "tag": "warn_file",
+        "type": "file",
+        "level": "WARNING",
+        "properties": [
+          {
+            "name": "filename",
+            "value": "logs/examples_warn.log"
+          },
+          {
+            "name": "json",
+            "value": "false"
+          },
+          {
+            "name": "format",
+            "value": "[%D %T] [%L] [%S] %M"
+          },
+          {
+            "name": "rotate",
+            "value": "true"
+          },
+          {
+            "name": "maxsize",
+            "value": "0M"
+          },
+          {
+            "name": "maxlines",
+            "value": "0K"
+          },
+          {
+            "name": "maxbackup",
+            "value": "16"
+          },
+          {
+            "name": "daily",
+            "value": "true"
+          },
+          {
+            "name": "hourly",
+            "value": "0"
+          }
+        ]
+      },
+      {
+        "enabled": "false",
+        "tag": "error_file",
+        "type": "file",
+        "level": "ERROR",
+        "properties": [
+          {
+            "name": "filename",
+            "value": "logs/examples_error.log"
+          },
+          {
+            "name": "json",
+            "value": "false"
+          },
+          {
+            "name": "format",
+            "value": "[%D %T] [%L] [%S] %M"
+          },
+          {
+            "name": "rotate",
+            "value": "true"
+          },
+          {
+            "name": "maxsize",
+            "value": "0M"
+          },
+          {
+            "name": "maxlines",
+            "value": "0K"
+          },
+          {
+            "name": "maxbackup",
+            "value": "16"
+          },
+          {
+            "name": "daily",
+            "value": "true"
+          },
+          {
+            "name": "hourly",
+            "value": "0"
+          }
+        ]
+      }
+    ]
+  }
+}

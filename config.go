@@ -3,6 +3,7 @@
 package log4go
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -28,11 +29,11 @@ type loggerConfig struct {
 	Filter []kvFilter `xml:"filter" json:"filters,omitempty"`
 }
 
-// Load XML configuration; see examples/example.xml for documentation
-func (log *Logger) LoadConfiguration(filename string) Logger {
-	log.Close()
-	log.minLevel = CRITICAL
+type jsonLoggerConfig struct {
+	Logging loggerConfig `json:"logging,omitempty"`
+}
 
+func loadConfFile(filename string) *loggerConfig {
 	// Open the configuration file
 	fd, err := os.Open(filename)
 	if err != nil {
@@ -51,15 +52,35 @@ func (log *Logger) LoadConfiguration(filename string) Logger {
 		os.Exit(1)
 	}
 
-	xc := new(loggerConfig)
-	if err := xml.Unmarshal(contents, xc); err != nil {
-		fmt.Fprintf(os.Stderr,
-			"LoadConfiguration: Error: Could not parse XML configuration in %q: %s\n",
-			filename, err)
-		os.Exit(1)
+	lc := new(loggerConfig)
+	if strings.HasSuffix(filename, ".json") {
+		jc := new(jsonLoggerConfig)
+		if err := json.Unmarshal(contents, jc); err != nil {
+			fmt.Fprintf(os.Stderr,
+				"LoadConfiguration: Error: Could not parse JSON configuration in %q: %s\n",
+				filename, err)
+			os.Exit(1)
+		}
+		lc = &jc.Logging
+	} else {
+		if err := xml.Unmarshal(contents, lc); err != nil {
+			fmt.Fprintf(os.Stderr,
+				"LoadConfiguration: Error: Could not parse XML configuration in %q: %s\n",
+				filename, err)
+			os.Exit(1)
+		}
 	}
 
-	for _, filter := range xc.Filter {
+	return lc
+}
+
+// Load XML configuration; see examples/example.xml or examples.json for documentation
+func (log *Logger) LoadConfiguration(filename string) Logger {
+	log.Close()
+	log.minLevel = CRITICAL
+
+	lc := loadConfFile(filename)
+	for _, filter := range lc.Filter {
 		var filt LogWriter
 		var lvl Level
 		bad, good, enabled := false, true, false
