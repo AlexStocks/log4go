@@ -12,25 +12,29 @@ import (
 	"strings"
 )
 
+import (
+	"gopkg.in/yaml.v2"
+)
+
 type confProperty struct {
-	Name  string `xml:"name,attr" json:"name,omitempty"`
-	Value string `xml:",chardata" json:"value,omitempty"`
+	Name  string `xml:"name,attr" json:"name,omitempty" yaml:"name"`
+	Value string `xml:",chardata" json:"value,omitempty"  yaml:"value"`
 }
 
 type kvFilter struct {
-	Enabled  string         `xml:"enabled,attr" json:"enabled,omitempty"`
-	Tag      string         `xml:"tag" json:"tag,omitempty"`
-	Level    string         `xml:"level" json:"level,omitempty"`
-	Type     string         `xml:"type" json:"type,omitempty"`
-	Property []confProperty `xml:"property" json:"properties,omitempty"`
+	Enabled  string         `xml:"enabled,attr" json:"enabled,omitempty" yaml:"enabled"`
+	Tag      string         `xml:"tag" json:"tag,omitempty" yaml:"tag"`
+	Level    string         `xml:"level" json:"level,omitempty" yaml:"level"`
+	Type     string         `xml:"type" json:"type,omitempty"  yaml:"type"`
+	Property []confProperty `xml:"property" json:"properties,omitempty" yaml:"properties"`
 }
 
 type loggerConfig struct {
-	Filter []kvFilter `xml:"filter" json:"filters,omitempty"`
+	Filter []kvFilter `xml:"filter" json:"filters,omitempty" yaml:"filters"`
 }
 
-type jsonLoggerConfig struct {
-	Logging loggerConfig `json:"logging,omitempty"`
+type logConfig struct {
+	Logging loggerConfig `json:"logging,omitempty" yaml:"logging"`
 }
 
 func loadConfFile(filename string) *loggerConfig {
@@ -53,8 +57,17 @@ func loadConfFile(filename string) *loggerConfig {
 	}
 
 	lc := new(loggerConfig)
-	if strings.HasSuffix(filename, ".json") {
-		jc := new(jsonLoggerConfig)
+	if strings.HasSuffix(filename, ".yml") {
+		yc := new(logConfig)
+		if err := yaml.Unmarshal(contents, yc); err != nil {
+			fmt.Fprintf(os.Stderr,
+				"LoadConfiguration: Error: Could not parse YAML configuration in %q: %s\n",
+				filename, err)
+			os.Exit(1)
+		}
+		lc = &yc.Logging
+	} else if strings.HasSuffix(filename, ".json") {
+		jc := new(logConfig)
 		if err := json.Unmarshal(contents, jc); err != nil {
 			fmt.Fprintf(os.Stderr,
 				"LoadConfiguration: Error: Could not parse JSON configuration in %q: %s\n",
@@ -62,6 +75,7 @@ func loadConfFile(filename string) *loggerConfig {
 			os.Exit(1)
 		}
 		lc = &jc.Logging
+
 	} else {
 		if err := xml.Unmarshal(contents, lc); err != nil {
 			fmt.Fprintf(os.Stderr,

@@ -8,7 +8,7 @@
 - 2019/09/23
     > feature
     * rotate file hourly
-    * json config file
+    * Support json/xml/yml configuration file
     * reuse log buf repeatably
 
 - 2018/06/01
@@ -59,13 +59,13 @@
 
 - 2017/03/07
     > bug fix
-	* log4go panic when cannot open new log file
+    * log4go panic when cannot open new log file
 
     > version: 3.0.2
 
 - 2017/02/09
     > bug fix
-	* just closed once in log4go.go
+    * just closed once in log4go.go
     * add select-case in every LogWrite to avoid panic when log channel is closed.
 
 

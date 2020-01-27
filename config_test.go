@@ -21,4 +21,12 @@ func TestLogger_LoadConfiguration(t *testing.T) {
 	if !reflect.DeepEqual(xmlConf, jsonConf) {
 		t.Fatalf("xmlConf %+v != jsonConf %+v", xmlConf, jsonConf)
 	}
+
+	yamlConfFile := pwd + "/examples/example.yml"
+	yamlConf := loadConfFile(yamlConfFile)
+	t.Logf("yaml conf:%+v", yamlConf)
+
+	if !reflect.DeepEqual(xmlConf, yamlConf) {
+		t.Fatalf("xmlConf %+v != yamlConf %+v", xmlConf, yamlConf)
+	}
 }
