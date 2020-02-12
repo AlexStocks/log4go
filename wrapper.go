@@ -18,6 +18,16 @@ func init() {
 	//Global.caller = false // 默认添加了一个 console writer，会导致此处的caller 为 true
 }
 
+// SetLogLevel changes default logger's log level
+func SetLogLevel(level Level) error {
+	if level < FINEST || LEVEL_END <= level {
+		return fmt.Errorf("illegal @level %v", level)
+	}
+
+	Global.minLevel = level
+	return nil
+}
+
 // Wrapper for (*Logger).LoadConfiguration
 func LoadConfiguration(filename string) {
 	Global.LoadConfiguration(filename)
