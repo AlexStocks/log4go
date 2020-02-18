@@ -58,10 +58,10 @@ import (
 
 // Version information
 const (
-	L4G_VERSION = "log4go-v3.2.0"
-	L4G_MAJOR   = 3
-	L4G_MINOR   = 2
-	L4G_BUILD   = 0
+	L4G_VERSION = "log4go-v1.0.6"
+	L4G_MAJOR   = 1
+	L4G_MINOR   = 0
+	L4G_BUILD   = 6
 )
 
 /****** Constants ******/
