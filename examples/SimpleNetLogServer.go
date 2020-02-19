@@ -20,6 +20,10 @@ func e(err error) {
 }
 
 func main() {
+	// 下面 两行 等效
+	// log.NewDefaultLogger(log.INFO).SetAsDefaultLogger()
+	// log.SetLogLevel(log.INFO)
+
 	defer log4go.Close()
 
 	flag.Parse()

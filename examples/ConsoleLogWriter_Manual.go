@@ -9,6 +9,10 @@ import (
 )
 
 func main() {
+	// 下面 两行 等效
+	// log.NewDefaultLogger(log.INFO).SetAsDefaultLogger()
+	// log.SetLogLevel(log.INFO)
+
 	log := l4g.NewLogger()
 	defer log.Close()
 	defer l4g.Close() // 关闭默认的全局

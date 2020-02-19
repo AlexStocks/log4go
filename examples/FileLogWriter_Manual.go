@@ -76,6 +76,10 @@ func testLog(json bool) {
 }
 
 func main() {
+	// 下面 两行 等效
+	// log.NewDefaultLogger(log.INFO).SetAsDefaultLogger()
+	// log.SetLogLevel(log.INFO)
+
 	defer l4g.Close()
 
 	testLog(false)
