@@ -70,14 +70,14 @@ l4g.Critical()
 ### Level
 
 ```go
-	FINEST
-	FINE
-	DEBUG
-	TRACE
-	INFO
-	WARNING
-	ERROR
-	CRITICAL
+FINEST
+FINE
+DEBUG
+TRACE
+INFO
+WARNING
+ERROR
+CRITICAL
 ```
 
 Feature list:
