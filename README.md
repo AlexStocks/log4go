@@ -1,4 +1,9 @@
-# a log4go fork maintained by AlexStocks, maybe the most powerful on github
+# log4go
+---
+
+[![Build Status](https://travis-ci.org/AlexStocks/log4go.svg?branch=master)](https://travis-ci.org/dubbogo/log4go)
+[![codecov](https://codecov.io/gh/AlexStocks/log4go/branch/master/graph/badge.svg)](https://codecov.io/gh/dubbogo/log4go)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/AlexStocks/log4go?tab=doc)
 
 Please see http://log4go.googlecode.com/ for more log4go usages. My personal
 package (github.com/AlexStocks/goext/log) wrappered log4go functions further
