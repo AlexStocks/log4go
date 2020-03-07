@@ -10,11 +10,11 @@ func TestLogger_LoadConfiguration(t *testing.T) {
 	pwd, _ := filepath.Abs(".")
 	t.Logf("pwd %s", pwd)
 
-	xmlConfFile := pwd + "/examples/example.xml"
+	xmlConfFile := pwd + "/examples/config/xml/example.xml"
 	xmlConf := loadConfFile(xmlConfFile)
 	t.Logf("xml  conf:%+v", xmlConf)
 
-	jsonConfFile := pwd + "/examples/example.json"
+	jsonConfFile := pwd + "/examples/config/json/example.json"
 	jsonConf := loadConfFile(jsonConfFile)
 	t.Logf("json conf:%+v", jsonConf)
 
@@ -22,7 +22,7 @@ func TestLogger_LoadConfiguration(t *testing.T) {
 		t.Fatalf("xmlConf %+v != jsonConf %+v", xmlConf, jsonConf)
 	}
 
-	yamlConfFile := pwd + "/examples/example.yml"
+	yamlConfFile := pwd + "/examples/config/yml/example.yml"
 	yamlConf := loadConfFile(yamlConfFile)
 	t.Logf("yaml conf:%+v", yamlConf)
 
