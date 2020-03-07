@@ -3,9 +3,9 @@
 package log4go
 
 const (
-	Version     = "1.0.0"
-	DATE        = "2018/12/01"
+	Version     = "1.0.7"
+	DATE        = "2020/03/07"
 	GETTY_MAJOR = 1
 	GETTY_MINOR = 0
-	GETTY_BUILD = 0
+	GETTY_BUILD = 7
 )
