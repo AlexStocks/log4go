@@ -5,6 +5,10 @@
 ## dev list ##
 ---
 
+- 2020/03/07
+    > Improvement
+    * add go mod
+
 - 2019/09/23
     > feature
     * rotate file hourly
